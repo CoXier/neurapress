@@ -364,6 +364,42 @@ export class MarkdownRenderer {
       return `<li${styleStr ? ` style="${styleStr}"` : ''}>${content}</li>`
     }
 
+    this.renderer.table = (token: Tokens.Table) => {
+      const tableStyle = (this.options.block?.table || {})
+      const theadStyle = (this.options.block?.thead || {})
+      const tableStyleStr = cssPropertiesToString(tableStyle)
+      const theadStyleStr = cssPropertiesToString(theadStyle)
+      const header = token.header
+        .map(cell => this.renderer.tablecell(cell))
+        .join('')
+      const rows = token.rows
+        .map(row => this.renderer.tablerow({ text: row.map(cell => this.renderer.tablecell(cell)).join('') }))
+        .join('')
+
+      return `<table${tableStyleStr ? ` style="${tableStyleStr}"` : ''}><thead${theadStyleStr ? ` style="${theadStyleStr}"` : ''}><tr>${header}</tr></thead><tbody>${rows}</tbody></table>`
+    }
+
+    this.renderer.tablerow = ({ text }: Tokens.TableRow) => {
+      return `<tr>${text}</tr>`
+    }
+
+    this.renderer.tablecell = (token: Tokens.TableCell) => {
+      const cellStyle = token.header
+        ? (this.options.block?.th || {})
+        : (this.options.block?.td || {})
+      const style = {
+        ...cellStyle,
+        ...(token.align ? { textAlign: token.align } : {})
+      }
+      const styleStr = cssPropertiesToString(style)
+      const content = token.tokens?.length
+        ? marked.Parser.parseInline(token.tokens, { renderer: this.renderer })
+        : token.text
+      const tag = token.header ? 'th' : 'td'
+
+      return `<${tag}${styleStr ? ` style="${styleStr}"` : ''}>${content}</${tag}>`
+    }
+
     // 添加删除线支持
     this.renderer.del = ({ text }: Tokens.Del) => {
       const styleOptions = (this.options.inline?.del || {})

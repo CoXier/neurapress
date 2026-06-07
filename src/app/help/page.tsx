@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
-import { 
+import {
   BookOpen,
   Play,
   Settings,
@@ -69,13 +69,13 @@ const features = [
   },
   {
     icon: Palette,
-    title: '样式定制',
-    description: '丰富的样式配置选项',
+    title: '极简主义排版',
+    description: '固定、清爽的公众号样式',
     tips: [
-      '选择预设的样式模板',
-      '自定义字体和颜色',
-      '调整段落间距',
-      '设置代码高亮主题'
+      '默认使用唯一的极简主义模板',
+      '标题、正文、引用保持统一节奏',
+      '表格使用轻量边线和留白',
+      '复制后可直接粘贴到公众号'
     ]
   },
   {
@@ -83,8 +83,7 @@ const features = [
     title: '一键复制',
     description: '复制带格式的内容',
     tips: [
-      '复制 HTML 源码',
-      '复制带格式的预览内容',
+      '点击复制获取带格式的预览内容',
       '支持直接粘贴到编辑器',
       '保持原有的排版效果'
     ]
@@ -131,7 +130,7 @@ export default function HelpPage() {
   return (
     <div className="min-h-screen bg-background">
       <MainNav />
-      
+
       {/* Hero Section */}
       <section className="py-20">
         <div className="container mx-auto px-4">
@@ -175,7 +174,7 @@ export default function HelpPage() {
                 <TabsTrigger value="faq">常见问题</TabsTrigger>
                 <TabsTrigger value="shortcuts">快捷键</TabsTrigger>
               </TabsList>
-              
+
               {/* Quick Start */}
               <TabsContent value="quickstart" className="space-y-8">
                 <div className="text-center mb-12">
@@ -186,7 +185,7 @@ export default function HelpPage() {
                     跟随以下步骤，快速掌握 NeuraPress 的使用方法
                   </p>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {quickStart.map((item, index) => (
                     <Card key={index} className="border-0 shadow-md">
@@ -209,7 +208,7 @@ export default function HelpPage() {
                     </Card>
                   ))}
                 </div>
-                
+
                 <div className="text-center mt-12">
                   <Card className="inline-block border-0 shadow-md bg-primary/5">
                     <CardContent className="p-6">
@@ -234,7 +233,7 @@ export default function HelpPage() {
                   </Card>
                 </div>
               </TabsContent>
-              
+
               {/* Features */}
               <TabsContent value="features" className="space-y-8">
                 <div className="text-center mb-12">
@@ -245,7 +244,7 @@ export default function HelpPage() {
                     深入了解 NeuraPress 的核心功能和使用技巧
                   </p>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {features.map((feature, index) => (
                     <Card key={index} className="border-0 shadow-md">
@@ -274,7 +273,7 @@ export default function HelpPage() {
                   ))}
                 </div>
               </TabsContent>
-              
+
               {/* FAQ */}
               <TabsContent value="faq" className="space-y-8">
                 <div className="text-center mb-12">
@@ -285,7 +284,7 @@ export default function HelpPage() {
                     这里是用户最常遇到的问题和解决方案
                   </p>
                 </div>
-                
+
                 <div className="space-y-6">
                   {faqs.map((faq, index) => (
                     <Card key={index} className="border-0 shadow-md">
@@ -305,7 +304,7 @@ export default function HelpPage() {
                     </Card>
                   ))}
                 </div>
-                
+
                 <div className="text-center mt-12">
                   <Card className="inline-block border-0 shadow-md bg-primary/5">
                     <CardContent className="p-6">
@@ -325,7 +324,7 @@ export default function HelpPage() {
                   </Card>
                 </div>
               </TabsContent>
-              
+
               {/* Shortcuts */}
               <TabsContent value="shortcuts" className="space-y-8">
                 <div className="text-center mb-12">
@@ -336,7 +335,7 @@ export default function HelpPage() {
                     使用快捷键提升编辑效率
                   </p>
                 </div>
-                
+
                 <div className="max-w-2xl mx-auto">
                   <Card className="border-0 shadow-md">
                     <CardContent className="p-6">
@@ -364,7 +363,7 @@ export default function HelpPage() {
                     </CardContent>
                   </Card>
                 </div>
-                
+
                 <div className="text-center mt-12">
                   <Card className="inline-block border-0 shadow-md bg-primary/5">
                     <CardContent className="p-6">
@@ -385,4 +384,4 @@ export default function HelpPage() {
       </section>
     </div>
   )
-} 
+}

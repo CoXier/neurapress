@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { ThemeToggle } from '@/components/theme-toggle'
 import { Logo } from '@/components/icons/Logo'
 import { Github } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -53,14 +52,13 @@ export function MainNav() {
             <p className="text-sm text-muted-foreground hidden md:block">
               专业的内容转换工具
             </p>
-            <ThemeToggle />
             <Button
               variant="ghost"
               size="icon"
               asChild
             >
               <Link
-                href="https://github.com/tianyaxiang/neurapress"
+                href="https://github.com/CoXier/neurapress"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -73,4 +71,4 @@ export function MainNav() {
       </div>
     </nav>
   )
-} 
+}

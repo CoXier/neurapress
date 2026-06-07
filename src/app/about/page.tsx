@@ -3,7 +3,7 @@ import { Logo } from '@/components/icons/Logo'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { 
+import {
   Heart,
   Target,
   Users,
@@ -52,7 +52,7 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen bg-background">
       <MainNav />
-      
+
       {/* Hero Section */}
       <section className="py-20 lg:py-32">
         <div className="container mx-auto px-4">
@@ -80,7 +80,7 @@ export default function AboutPage() {
                 我们的使命
               </h2>
             </div>
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <div>
                 <h3 className="text-2xl font-bold text-foreground mb-4">
@@ -101,14 +101,14 @@ export default function AboutPage() {
                     </Link>
                   </Button>
                   <Button variant="outline" asChild>
-                    <Link href="https://github.com/tianyaxiang/neurapress" target="_blank">
+                    <Link href="https://github.com/CoXier/neurapress" target="_blank">
                       <Github className="mr-2 h-4 w-4" />
                       查看源码
                     </Link>
                   </Button>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 {features.map((feature, index) => (
                   <div key={index} className="flex items-center gap-2 text-sm">
@@ -132,7 +132,7 @@ export default function AboutPage() {
               这些核心价值观指导着我们的产品开发和团队文化
             </p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {values.map((value, index) => (
               <Card key={index} className="text-center border-0 shadow-md">
@@ -163,7 +163,7 @@ export default function AboutPage() {
             <p className="text-lg text-muted-foreground mb-12">
               我们使用现代化的技术栈构建 NeuraPress，确保产品的性能、稳定性和可维护性
             </p>
-            
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               <div className="text-center">
                 <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
@@ -171,21 +171,21 @@ export default function AboutPage() {
                 </div>
                 <p className="font-medium">Next.js 14</p>
               </div>
-              
+
               <div className="text-center">
                 <div className="w-16 h-16 bg-cyan-100 rounded-lg flex items-center justify-center mx-auto mb-3">
                   <span className="text-2xl font-bold text-cyan-600">React</span>
                 </div>
                 <p className="font-medium">React 18</p>
               </div>
-              
+
               <div className="text-center">
                 <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
                   <span className="text-2xl font-bold text-blue-600">TS</span>
                 </div>
                 <p className="font-medium">TypeScript</p>
               </div>
-              
+
               <div className="text-center">
                 <div className="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center mx-auto mb-3">
                   <span className="text-2xl font-bold text-slate-600">TW</span>
@@ -207,10 +207,10 @@ export default function AboutPage() {
             <p className="text-lg text-muted-foreground mb-8">
               有任何问题、建议或合作意向，欢迎随时联系我们
             </p>
-            
+
             <div className="flex justify-center gap-6 mb-8">
-              <Link 
-                href="https://github.com/tianyaxiang/neurapress" 
+              <Link
+                href="https://github.com/CoXier/neurapress"
                 target="_blank"
                 className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -218,9 +218,9 @@ export default function AboutPage() {
                 <span>GitHub</span>
                 <ExternalLink className="h-4 w-4" />
               </Link>
-              
-              <Link 
-                href="https://x.com/tianyaxiang" 
+
+              <Link
+                href="https://x.com/tianyaxiang"
                 target="_blank"
                 className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -228,8 +228,8 @@ export default function AboutPage() {
                 <span>Twitter</span>
                 <ExternalLink className="h-4 w-4" />
               </Link>
-              
-              <Link 
+
+              <Link
                 href="mailto:tianyaxiang@qq.com"
                 className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -237,7 +237,7 @@ export default function AboutPage() {
                 <span>Email</span>
               </Link>
             </div>
-            
+
             <Card className="border-0 shadow-md bg-primary/5">
               <CardContent className="p-6">
                 <p className="text-foreground font-medium mb-2">
@@ -254,4 +254,4 @@ export default function AboutPage() {
       </section>
     </div>
   )
-} 
+}

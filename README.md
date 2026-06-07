@@ -11,9 +11,9 @@ NeuraPress 是一个现代化的 Markdown 编辑器，专注于提供优质的�
 - 🎨 实时预览 - 所见即所得的编辑体验
 - 📱 移动端支持 - 支持手机上直接编辑，搭配 DeepSeek和微信公众号助手使用
 - 🎯 微信风格 - 完美适配微信公众号样式
-- 🔧 样式定制 - 灵活的样式配置选项
+- 🧘 极简主义 - 固定使用克制、清爽的公众号排版
 - 📋 一键复制 - 支持复制带格式的预览内容
-- 🎭 模板系统 - 内置多种排版模板，一键切换
+- 📊 表格优化 - 适合公众号粘贴的轻量表格样式
 - 🚀 快速高效 - 基于 Next.js 构建，性能优异
 
 ## 快速开始
@@ -27,7 +27,7 @@ NeuraPress 是一个现代化的 Markdown 编辑器，专注于提供优质的�
 
 ```bash
 # 克隆项目
-git clone https://github.com/tianyaxiang/neurapress.git
+git clone https://github.com/CoXier/neurapress.git
 
 # 进入项目目录
 cd neurapress
@@ -116,14 +116,13 @@ docker run -p 3000:3000 [your-dockerhub-username]/neurapress:latest
    - 展示最终在微信中的显示效果
    - 可以切换预览窗口的显示/隐藏
 
-3. **样式设置**
-   - 使用样式选择器选择预设模板
-   - 通过样式配置对话框自定义样式
-   - 支持自定义字体、颜色、间距等属性
+3. **极简主义排版**
+   - 默认使用唯一的「极简主义」模板
+   - 移除了模板和主题切换入口
+   - 表格、引用、标题和正文保持统一的轻量样式
 
 4. **复制内容**
-   - 点击"复制源码"获取 HTML 源码
-   - 点击"复制预览"获取带格式的预览内容
+   - 点击"复制"获取带格式的预览内容
    - 直接粘贴到微信公众号编辑器中使用
 
 ## 技术栈
@@ -142,7 +141,7 @@ docker run -p 3000:3000 [your-dockerhub-username]/neurapress:latest
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=tianyaxiang/neurapress&type=date&legend=top-left)](https://www.star-history.com/#tianyaxiang/neurapress&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=CoXier/neurapress&type=date&legend=top-left)](https://www.star-history.com/#CoXier/neurapress&type=date&legend=top-left)
 
 ## 贡献指南
 

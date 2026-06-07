@@ -110,7 +110,7 @@ export default function Home() {
                 </Link>
               </Button>
               <Button variant="outline" size="lg" className="text-lg px-8" asChild>
-                <Link href="https://github.com/tianyaxiang/neurapress" target="_blank">
+                <Link href="https://github.com/CoXier/neurapress" target="_blank">
                   <Github className="mr-2 h-5 w-5" />
                   查看源码
                 </Link>
@@ -229,7 +229,7 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-6">
               <Link
-                href="https://github.com/tianyaxiang/neurapress"
+                href="https://github.com/CoXier/neurapress"
                 target="_blank"
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >

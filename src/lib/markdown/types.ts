@@ -22,7 +22,9 @@ export interface StyleOptions {
   paddingBottom?: string | number
   paddingLeft?: string | number
   maxWidth?: string | number
-  
+  minWidth?: string | number
+  boxSizing?: string
+
   // Typography
   color?: string
   fontSize?: string | number
@@ -36,7 +38,7 @@ export interface StyleOptions {
   letterSpacing?: string | number
   whiteSpace?: string
   wordBreak?: string
-  
+
   // Border & Background
   border?: string
   borderTop?: string
@@ -45,22 +47,24 @@ export interface StyleOptions {
   borderLeft?: string
   borderRadius?: string
   borderCollapse?: string
+  borderSpacing?: string
   background?: string
   backgroundColor?: string
   backgroundImage?: string
-  
+  tableLayout?: string
+
   // List
   listStyle?: string
   listStyleType?: string
   listStylePosition?: string
-  
+
   // Flexbox
   alignItems?: string
   justifyContent?: string
   flexDirection?: string
   flexWrap?: string
   gap?: string
-  
+
   // Other
   opacity?: number
   overflow?: string
@@ -125,4 +129,4 @@ export interface RendererOptions {
     latex?: StyleOptions
   }
   codeTheme?: CodeThemeId
-} 
+}

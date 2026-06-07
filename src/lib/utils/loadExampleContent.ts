@@ -10,7 +10,7 @@ Markdown 转微信公众帐号内容神器，能让\`Markdown\`内容，无需�
 
 GitHub 地址：
 
-[https://github.com/tianyaxiang/neurapress](https://github.com/tianyaxiang/neurapress)
+[https://github.com/CoXier/neurapress](https://github.com/CoXier/neurapress)
 
 > 使用微信公众号编辑器有一个十分头疼的问题——粘贴出来的代码，格式错乱，而且特别丑。
 
@@ -109,11 +109,11 @@ roleRef:
 \`\`\`
 
 
-在页面头部提供了很多中**代码主题**风格，可以根据需要选择合适的即可。
+当前版本固定使用「极简主义」排版，标题、正文、引用、代码和表格都保持克制统一，复制到公众号后无需再挑选模板。
 
 ### 用户体验
 - 支持自动保存
-- 支持多种主题
+- 支持极简主义公众号排版
 - 支持快捷键
 `;
 

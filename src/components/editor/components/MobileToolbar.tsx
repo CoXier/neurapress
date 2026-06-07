@@ -1,7 +1,6 @@
 import { Copy, Save, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
-import { WechatStylePicker } from '../../template/WechatStylePicker'
 
 interface MobileToolbarProps {
   showPreview: boolean
@@ -10,8 +9,6 @@ interface MobileToolbarProps {
   onSave: () => void
   onCopy: () => void
   onCopyPreview: () => void
-  selectedTemplate: string
-  onTemplateSelect: (template: string) => void
 }
 
 export function MobileToolbar({
@@ -20,21 +17,11 @@ export function MobileToolbar({
   onPreviewToggle,
   onSave,
   onCopy,
-  onCopyPreview,
-  selectedTemplate,
-  onTemplateSelect
+  onCopyPreview
 }: MobileToolbarProps) {
   return (
     <div className="bg-background border-t">
       <div className="flex flex-col">
-        <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="p-2">
-            <WechatStylePicker 
-              value={selectedTemplate} 
-              onSelect={onTemplateSelect}
-            />
-          </div>
-        </div>
         <div className="flex items-center justify-between p-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <button
             onClick={onCopyPreview}
@@ -56,7 +43,7 @@ export function MobileToolbar({
                   onClick={onSave}
                   className={cn(
                     "flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm transition-colors",
-                    isDraft 
+                    isDraft
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground"
                   )}
@@ -79,4 +66,4 @@ export function MobileToolbar({
       </div>
     </div>
   )
-} 
+}

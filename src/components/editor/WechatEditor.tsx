@@ -6,25 +6,21 @@ import { ToastAction } from '@/components/ui/toast'
 import { type RendererOptions } from '@/lib/markdown'
 import { useAutoSave } from './hooks/useAutoSave'
 import { EditorToolbar } from './components/EditorToolbar'
-import { EditorPreview } from './components/EditorPreview'
-import { MarkdownToolbar } from './components/MarkdownToolbar'
 import { type PreviewSize } from './constants'
-import { useLocalStorage } from '@/hooks/use-local-storage'
-import { codeThemes, type CodeThemeId } from '@/config/code-themes'
+import { type CodeThemeId } from '@/config/code-themes'
 import '@/styles/code-themes.css'
-import { templates } from '@/config/wechat-templates'
-import { cn } from '@/lib/utils'
+import { MINIMAL_TEMPLATE_ID } from '@/config/wechat-templates'
 import { usePreviewContent } from './hooks/usePreviewContent'
 import { useEditorKeyboard } from './hooks/useEditorKeyboard'
 import { useScrollSync } from './hooks/useScrollSync'
 import { useWordStats } from './hooks/useWordStats'
 import { useCopy } from './hooks/useCopy'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Button } from '@/components/ui/button'
-import { Copy } from 'lucide-react'
 import { MobileEditor } from './components/MobileEditor'
 import { DesktopEditor } from './components/DesktopEditor'
 import { getExampleContent } from '@/lib/utils/loadExampleContent'
+
+const fixedStyleOptions: RendererOptions = {}
+const defaultCodeTheme: CodeThemeId = 'github'
 
 export default function WechatEditor() {
   const { toast } = useToast()
@@ -34,12 +30,11 @@ export default function WechatEditor() {
   
   // 状态管理
   const [value, setValue] = useState('')
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('default')
+  const selectedTemplate = MINIMAL_TEMPLATE_ID
   const [showPreview, setShowPreview] = useState(true)
-  const [styleOptions, setStyleOptions] = useState<RendererOptions>({})
   const [previewSize, setPreviewSize] = useState<PreviewSize>('medium')
   const [isDraft, setIsDraft] = useState(false)
-  const [codeTheme, setCodeTheme] = useLocalStorage<CodeThemeId>('code-theme', codeThemes[0].id)
+  const codeTheme = defaultCodeTheme
 
   // 使用自定义 hooks
   const { handleEditorChange } = useAutoSave(value, setIsDraft)
@@ -81,7 +76,7 @@ export default function WechatEditor() {
   const { isConverting, previewContent } = usePreviewContent({
     value,
     selectedTemplate,
-    styleOptions,
+    styleOptions: fixedStyleOptions,
     codeTheme
   })
 
@@ -155,7 +150,6 @@ export default function WechatEditor() {
   // 处理文章选择
   const handleArticleSelect = useCallback((article: { content: string, template: string }) => {
     setValue(article.content)
-    setSelectedTemplate(article.template)
     setIsDraft(false)
     toast({
       title: "加载成功",
@@ -225,12 +219,6 @@ export default function WechatEditor() {
     })
   }, [value, handleEditorChange])
 
-  // 处理模版选择
-  const handleTemplateSelect = useCallback((templateId: string) => {
-    setSelectedTemplate(templateId)
-    setStyleOptions({})
-  }, [])
-
   // 检测是否为移动设备
   const isMobile = useCallback(() => {
     if (typeof window === 'undefined') return false
@@ -286,21 +274,11 @@ export default function WechatEditor() {
         value={value}
         isDraft={isDraft}
         showPreview={showPreview}
-        selectedTemplate={selectedTemplate}
-        styleOptions={styleOptions}
-        codeTheme={codeTheme}
-        wordCount={wordCount}
-        readingTime={readingTime}
         onSave={handleSave}
-        onCopy={handleCopy}
         onCopyPreview={handleCopy}
         onNewArticle={handleNewArticle}
         onArticleSelect={handleArticleSelect}
-        onTemplateSelect={(templateId: string) => setSelectedTemplate(templateId)}
-        onTemplateChange={() => {}}
-        onStyleOptionsChange={setStyleOptions}
         onPreviewToggle={() => setShowPreview(!showPreview)}
-        onCodeThemeChange={setCodeTheme}
         onClear={handleClear}
       />
 
