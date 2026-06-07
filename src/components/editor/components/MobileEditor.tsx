@@ -70,7 +70,7 @@ export function MobileEditor({
                   onEditorScroll(e)
                 }
               }}
-              className="absolute inset-0 w-full h-full resize-none border-0 bg-background p-4 focus:outline-none"
+              className="absolute inset-0 w-full h-full resize-none border-0 bg-background p-4 font-mono text-base leading-relaxed focus:outline-none"
               placeholder="开始写作..."
             />
           </div>
@@ -96,4 +96,4 @@ export function MobileEditor({
       </Tabs>
     </div>
   )
-} 
+}

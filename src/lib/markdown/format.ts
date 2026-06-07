@@ -35,14 +35,55 @@ function getAlignment(separator: string): 'left' | 'center' | 'right' {
   return 'left'
 }
 
-function createSeparator(alignment: 'left' | 'center' | 'right') {
-  if (alignment === 'center') return ':---:'
-  if (alignment === 'right') return '---:'
-  return '---'
+function isWideCodePoint(codePoint: number) {
+  return (
+    codePoint >= 0x1100 && (
+      codePoint <= 0x115f ||
+      codePoint === 0x2329 ||
+      codePoint === 0x232a ||
+      (codePoint >= 0x2e80 && codePoint <= 0xa4cf && codePoint !== 0x303f) ||
+      (codePoint >= 0xac00 && codePoint <= 0xd7a3) ||
+      (codePoint >= 0xf900 && codePoint <= 0xfaff) ||
+      (codePoint >= 0xfe10 && codePoint <= 0xfe19) ||
+      (codePoint >= 0xfe30 && codePoint <= 0xfe6f) ||
+      (codePoint >= 0xff00 && codePoint <= 0xff60) ||
+      (codePoint >= 0xffe0 && codePoint <= 0xffe6)
+    )
+  )
+}
+
+function getDisplayWidth(value: string) {
+  let width = 0
+
+  for (const char of value) {
+    const codePoint = char.codePointAt(0) || 0
+    if (/[\u0300-\u036f]/.test(char)) continue
+    width += isWideCodePoint(codePoint) ? 2 : 1
+  }
+
+  return width
+}
+
+function createSeparator(width: number, alignment: 'left' | 'center' | 'right') {
+  const normalizedWidth = Math.max(width, 3)
+  if (alignment === 'center') return `:${'-'.repeat(Math.max(normalizedWidth - 2, 1))}:`
+  if (alignment === 'right') return `${'-'.repeat(Math.max(normalizedWidth - 1, 2))}:`
+  return '-'.repeat(normalizedWidth)
 }
 
 function formatTableCell(cell: string) {
   return cell.replace(/\s+/g, ' ').trim()
+}
+
+function padCell(cell: string, width: number, alignment: 'left' | 'center' | 'right') {
+  const gap = Math.max(width - getDisplayWidth(cell), 0)
+  if (alignment === 'right') return `${' '.repeat(gap)}${cell}`
+  if (alignment === 'center') {
+    const left = Math.floor(gap / 2)
+    const right = gap - left
+    return `${' '.repeat(left)}${cell}${' '.repeat(right)}`
+  }
+  return `${cell}${' '.repeat(gap)}`
 }
 
 function findTableBlock(lines: string[], start: number): TableBlock | null {
@@ -80,12 +121,19 @@ function formatTable(block: TableBlock) {
     return next
   })
 
+  const contentRows = normalizedRows.filter((_, index) => index !== 1)
+  const widths = Array.from({ length: columnCount }, (_, columnIndex) => {
+    const contentWidth = Math.max(...contentRows.map(row => getDisplayWidth(row[columnIndex])), 3)
+    const separatorWidth = createSeparator(contentWidth, block.alignments[columnIndex]).length
+    return Math.max(contentWidth, separatorWidth)
+  })
+
   return normalizedRows.map((row, rowIndex) => {
     const cells = row.map((cell, columnIndex) => {
       if (rowIndex === 1) {
-        return createSeparator(block.alignments[columnIndex])
+        return createSeparator(widths[columnIndex], block.alignments[columnIndex])
       }
-      return cell
+      return padCell(cell, widths[columnIndex], block.alignments[columnIndex])
     })
 
     return `| ${cells.join(' | ')} |`
