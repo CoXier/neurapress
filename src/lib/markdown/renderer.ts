@@ -96,7 +96,7 @@ export class MarkdownRenderer {
           // 检查内容是否是 mermaid 图表
           if (content.match(/^(?:pie\s+|graph\s+|sequenceDiagram\s+|gantt\s+|classDiagram\s+|flowchart\s+)/)) {
             // 如果是饼图，添加 showData 选项
-            const processedContent = content.startsWith('pie') 
+            const processedContent = content.startsWith('pie')
               ? `pie showData\n${content.replace(/^pie\s*/, '').trim()}`
               : content
             return {
@@ -119,7 +119,7 @@ export class MarkdownRenderer {
             background: 'transparent'
           }
           const styleStr = cssPropertiesToString(style)
-          
+
           // Remove the random ID generation since it's not needed
           // Return a simple div with the mermaid class and content
           return `<div${styleStr ? ` style="${styleStr}"` : ''} class="mermaid">${token.text}</div>`
@@ -156,12 +156,16 @@ export class MarkdownRenderer {
       const headingKey = `h${depth}` as keyof RendererOptions['block']
       const headingStyle = (this.options.block?.[headingKey] || {})
       const style = {
-        ...headingStyle,
-        color: this.options.base?.themeColor
+        color: this.options.base?.themeColor,
+        ...headingStyle
       }
       const styleStr = cssPropertiesToString(style)
       const tokens = marked.Lexer.lexInline(text)
       const content = marked.Parser.parseInline(tokens, { renderer: this.renderer })
+      if (depth === 2) {
+        const proHeadingStyle = 'margin: 30px 0 15px; font-size: 20px; font-weight: bold; color: #000; border-bottom: 2px solid #000; padding-bottom: 5px; display: inline-block; color: #000000 !important; border-color: #000000 !important'
+        return `<h2 style="${proHeadingStyle}"><span style="color: #000000 !important">${content}</span></h2>`
+      }
       return `<h${depth}${styleStr ? ` style="${styleStr}"` : ''}>${content}</h${depth}>`
     }
 
@@ -203,25 +207,25 @@ export class MarkdownRenderer {
       const styleStr = cssPropertiesToString(style)
       const tokens = marked.Lexer.lexInline(text)
       const content = marked.Parser.parseInline(tokens, { renderer: this.renderer })
-      
+
       return `<blockquote${styleStr ? ` style="${styleStr}"` : ''}>${content}</blockquote>`
     }
 
     // 重写 code 方法
-    this.renderer.code = ({ text, lang }: Tokens.Code) => {  
+    this.renderer.code = ({ text, lang }: Tokens.Code) => {
       const codeStyle = (this.options.block?.code_pre || {})
       const style = {
         ...codeStyle
       }
       const styleStr = cssPropertiesToString(style)
-      
+
       const highlighted = highlightCode(text, lang || '', this.options.codeTheme || 'github')
-      
+
       return `<pre${styleStr ? ` style="${styleStr}"` : ''}><code class="language-${lang || ''}">${highlighted}</code></pre>`
     }
 
     // 重写 codespan 方法
-    this.renderer.codespan = ({ text }: Tokens.Codespan) => {  
+    this.renderer.codespan = ({ text }: Tokens.Codespan) => {
       const codespanStyle = (this.options.inline?.codespan || {})
       const styleStr = cssPropertiesToString(codespanStyle)
       return `<code class="inline-code"${styleStr ? ` style="${styleStr}"` : ''}>${text}</code>`
@@ -237,7 +241,7 @@ export class MarkdownRenderer {
       const styleStr = cssPropertiesToString(style)
       const tokens = marked.Lexer.lexInline(text)
       const content = marked.Parser.parseInline(tokens, { renderer: this.renderer })
-      
+
       return `<em${styleStr ? ` style="${styleStr}"` : ''}>${content}</em>`    }
 
     // 重写 strong 方法
@@ -251,7 +255,7 @@ export class MarkdownRenderer {
       const styleStr = cssPropertiesToString(style)
       const tokens = marked.Lexer.lexInline(text)
       const content = marked.Parser.parseInline(tokens, { renderer: this.renderer })
-      
+
       return `<strong${styleStr ? ` style="${styleStr}"` : ''}>${content}</strong>`
     }
 
@@ -287,7 +291,7 @@ export class MarkdownRenderer {
       }
       const styleStr = cssPropertiesToString(style)
       const startAttr = token.ordered && token.start !== 1 ? ` start="${token.start}"` : ''
-      
+
       const items = token.items.map(item => {
         let itemText = item.text
         if (item.task) {
@@ -296,7 +300,7 @@ export class MarkdownRenderer {
         }
         return this.renderer.listitem({ ...item, text: itemText })
       }).join('')
-      
+
       return `<${tag}${startAttr}${styleStr ? ` style="${styleStr}"` : ''}>${items}</${tag}>`
     }
 
@@ -309,7 +313,7 @@ export class MarkdownRenderer {
         display: 'list-item'
       }
       const styleStr = cssPropertiesToString(style)
-      
+
       // 处理嵌套列表和内容
       let content = item.text
       if (item.tokens) {
@@ -340,7 +344,7 @@ export class MarkdownRenderer {
                 return match
               }
             })
-            
+
             // 然后处理其他内联标记
             const inlineTokens = marked.Lexer.lexInline(processedText)
             return marked.Parser.parseInline(inlineTokens, { renderer: this.renderer })
@@ -354,13 +358,13 @@ export class MarkdownRenderer {
         const inlineTokens = marked.Lexer.lexInline(content)
         content = marked.Parser.parseInline(inlineTokens, { renderer: this.renderer })
       }
-      
+
       // 处理任务列表项
       if (item.task) {
         const checkbox = `<input type="checkbox"${item.checked ? ' checked=""' : ''} disabled="" /> `
         content = checkbox + content
       }
-      
+
       return `<li${styleStr ? ` style="${styleStr}"` : ''}>${content}</li>`
     }
 

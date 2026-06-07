@@ -24,7 +24,7 @@ export const usePreviewContent = ({
 
   const getPreviewContent = useCallback(() => {
     if (!value) return ''
-    
+
     const template = templates.find(t => t.id === selectedTemplate)
     const mergedOptions: RendererOptions = {
       base: {
@@ -51,11 +51,7 @@ export const usePreviewContent = ({
         h2: {
           ...(template?.options?.block?.h2 || {}),
           ...(styleOptions.block?.h2 || {}),
-          fontSize: styleOptions.block?.h2?.fontSize || template?.options?.block?.h2?.fontSize || '20px',
-          color: styleOptions.base?.themeColor || template?.options?.base?.themeColor || '#1a1a1a',
-          ...(template?.options?.block?.h2?.borderBottom && {
-            borderBottom: `2px solid ${styleOptions.base?.themeColor || template?.options?.base?.themeColor || '#1a1a1a'}`
-          })
+          fontSize: styleOptions.block?.h2?.fontSize || template?.options?.block?.h2?.fontSize || '20px'
         },
         h3: {
           ...(template?.options?.block?.h3 || {}),
@@ -94,11 +90,11 @@ export const usePreviewContent = ({
       },
       codeTheme
     }
-    
+
     const html = convertToWechat(value, mergedOptions)
-   
+
     if (!template?.transform) return html
-    
+
     try {
       const transformed = template.transform(html)
       if (transformed && typeof transformed === 'object') {
@@ -120,7 +116,7 @@ export const usePreviewContent = ({
         setPreviewContent('')
         return
       }
-      
+
       setIsConverting(true)
       try {
         const content = getPreviewContent()
@@ -155,4 +151,4 @@ export const usePreviewContent = ({
     previewContent,
     getPreviewContent
   }
-} 
+}

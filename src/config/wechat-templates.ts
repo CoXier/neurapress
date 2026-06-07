@@ -43,14 +43,14 @@ export const templates: Template[] = [
           letterSpacing: '0'
         },
         h2: {
-          margin: '2em 0 1em',
-          padding: '0 0 0.45em',
-          borderBottom: '1px solid #eaeef2',
+          margin: '30px 0 15px',
+          paddingBottom: '5px',
+          borderBottom: '2px solid #000',
+          borderColor: '#000000 !important',
+          display: 'inline-block',
+          color: '#000000 !important',
           fontSize: '20px',
-          fontWeight: 700,
-          lineHeight: '1.4',
-          textAlign: 'left',
-          letterSpacing: '0'
+          fontWeight: 'bold'
         },
         h3: {
           margin: '1.8em 0 0.8em',

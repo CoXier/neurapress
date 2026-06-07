@@ -45,6 +45,7 @@ export interface StyleOptions {
   borderRight?: string
   borderBottom?: string
   borderLeft?: string
+  borderColor?: string
   borderRadius?: string
   borderCollapse?: string
   borderSpacing?: string
