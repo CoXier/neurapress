@@ -1,10 +1,9 @@
 'use client'
 
-import { Copy, Github, Save, Smartphone, Trash2 } from 'lucide-react'
+import { Copy, Save, Smartphone, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { ArticleList } from '@/components/ArticleList'
 import { Logo } from '@/components/icons/Logo'
-import { Button } from '@/components/ui/button'
 import { ToastAction } from '@/components/ui/toast'
 import { useToast } from '@/components/ui/use-toast'
 import { cn } from '@/lib/utils'
@@ -121,21 +120,6 @@ export function EditorToolbar({
                 <Copy className="h-4 w-4" />
                 <span>复制</span>
               </button>
-              <Button
-                variant="ghost"
-                size="icon"
-                asChild
-                className="hidden sm:inline-flex"
-              >
-                <Link
-                  href="https://github.com/CoXier/neurapress"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Github className="h-5 w-5" />
-                  <span className="sr-only">GitHub</span>
-                </Link>
-              </Button>
             </div>
           </div>
         </div>
