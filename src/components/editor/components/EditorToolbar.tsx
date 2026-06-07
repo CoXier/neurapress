@@ -1,6 +1,6 @@
 'use client'
 
-import { AlignLeft, Copy, Github, Save, Smartphone, Trash2 } from 'lucide-react'
+import { Copy, Github, Save, Smartphone, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { ArticleList } from '@/components/ArticleList'
 import { Logo } from '@/components/icons/Logo'
@@ -19,7 +19,6 @@ interface EditorToolbarProps {
   onArticleSelect: (article: { content: string, template: string }) => void
   onPreviewToggle: () => void
   onClear: () => void
-  onFormat: () => void
 }
 
 export function EditorToolbar({
@@ -31,8 +30,7 @@ export function EditorToolbar({
   onNewArticle,
   onArticleSelect,
   onPreviewToggle,
-  onClear,
-  onFormat
+  onClear
 }: EditorToolbarProps) {
   const { toast } = useToast()
 
@@ -115,13 +113,6 @@ export function EditorToolbar({
               >
                 <Trash2 className="h-4 w-4" />
                 <span>清除</span>
-              </button>
-              <button
-                onClick={onFormat}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-muted text-muted-foreground hover:bg-muted/90 text-sm transition-colors"
-              >
-                <AlignLeft className="h-4 w-4" />
-                <span>格式化</span>
               </button>
               <button
                 onClick={handleCopyPreview}

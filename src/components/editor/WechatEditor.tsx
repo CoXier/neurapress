@@ -18,7 +18,6 @@ import { useCopy } from './hooks/useCopy'
 import { MobileEditor } from './components/MobileEditor'
 import { DesktopEditor } from './components/DesktopEditor'
 import { getExampleContent } from '@/lib/utils/loadExampleContent'
-import { formatMarkdown } from '@/lib/markdown/format'
 
 const fixedStyleOptions: RendererOptions = {}
 const defaultCodeTheme: CodeThemeId = 'github'
@@ -112,48 +111,6 @@ export default function WechatEditor() {
   }, [handleEditorChange])
 
   const { copyToClipboard } = useCopy()
-
-  const handleFormat = useCallback(() => {
-    if (!value.trim()) {
-      toast({
-        title: "无需格式化",
-        description: "当前没有可格式化的内容",
-        duration: 2000
-      })
-      return
-    }
-
-    const textarea = textareaRef.current
-    const scrollTop = textarea?.scrollTop || 0
-    const cursorPosition = textarea?.selectionStart || 0
-    const formatted = formatMarkdown(value)
-
-    if (formatted === value) {
-      toast({
-        title: "已是标准格式",
-        description: "当前内容无需调整",
-        duration: 2000
-      })
-      return
-    }
-
-    setValue(formatted)
-    handleEditorChange(formatted)
-    toast({
-      title: "格式化完成",
-      description: "已整理标题、列表、引用、空行和表格",
-      duration: 2000
-    })
-
-    requestAnimationFrame(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus()
-        textareaRef.current.scrollTop = scrollTop
-        const nextPosition = Math.min(cursorPosition, formatted.length)
-        textareaRef.current.setSelectionRange(nextPosition, nextPosition)
-      }
-    })
-  }, [value, handleEditorChange, toast])
 
   const handleCopy = useCallback(async (): Promise<boolean> => {
     const contentElement = previewRef.current?.querySelector('.preview-content') as HTMLElement | null
@@ -323,7 +280,6 @@ export default function WechatEditor() {
         onArticleSelect={handleArticleSelect}
         onPreviewToggle={() => setShowPreview(!showPreview)}
         onClear={handleClear}
-        onFormat={handleFormat}
       />
 
       {/* 编辑器主体 */}
