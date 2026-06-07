@@ -9,6 +9,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { GoogleAnalytics } from '@/components/GoogleAnalytics'
 
 const inter = Inter({ subsets: ['latin'] })
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
 
 export const metadata: Metadata = {
   title: 'NeuraPress',
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: '/favicon.svg',
+        url: `${basePath}/favicon.svg`,
         type: 'image/svg+xml',
       }
     ],

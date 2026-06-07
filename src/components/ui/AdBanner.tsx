@@ -5,6 +5,7 @@ import { X } from "lucide-react"
 import { Button } from "./button"
 import { Card } from "./card"
 import { cn } from "@/lib/utils"
+import { withBasePath } from "@/lib/utils/base-path"
 
 interface AdBannerProps {
   id?: string // 广告ID，用于本地存储
@@ -21,7 +22,7 @@ interface AdBannerProps {
 const AdBanner = React.forwardRef<HTMLDivElement, AdBannerProps>(
   ({ 
     id = "default-ad",
-    imageUrl = "/assets/img/neurapress-web-app.jpg", 
+    imageUrl = withBasePath("/assets/img/neurapress-web-app.jpg"),
     title = "NeuraPress - 让 Markdown 编辑更简单",
     description = "专业的 Markdown 编辑器，支持微信公众号、小红书等多平台格式导出",
     linkUrl = "#",
@@ -124,7 +125,7 @@ const AdBanner = React.forwardRef<HTMLDivElement, AdBannerProps>(
               <div className="flex justify-center pt-2">
                 <div className="w-25 h-25 rounded-lg overflow-hidden shadow-sm">
                   <img
-                    src="/assets/img/qun.png"
+                    src={withBasePath("/assets/img/qun.png")}
                     alt={title}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -195,4 +196,4 @@ const AdBanner = React.forwardRef<HTMLDivElement, AdBannerProps>(
 
 AdBanner.displayName = "AdBanner"
 
-export { AdBanner, type AdBannerProps } 
+export { AdBanner, type AdBannerProps }
