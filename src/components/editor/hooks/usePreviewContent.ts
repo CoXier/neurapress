@@ -1,9 +1,7 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useCallback, useMemo } from 'react'
 import { templates } from '@/config/wechat-templates'
 import { convertToWechat, getCodeThemeStyles, type RendererOptions } from '@/lib/markdown'
 import { type CodeThemeId } from '@/config/code-themes'
-import { useToast } from '@/components/ui/use-toast'
-import { initializeMermaid } from '@/lib/markdown/mermaid-utils'
 
 interface UsePreviewContentProps {
   value: string
@@ -18,10 +16,6 @@ export const usePreviewContent = ({
   styleOptions,
   codeTheme
 }: UsePreviewContentProps) => {
-  const { toast } = useToast()
-  const [isConverting, setIsConverting] = useState(false)
-  const [previewContent, setPreviewContent] = useState('')
-
   const getPreviewContent = useCallback(() => {
     if (!value) return ''
 
@@ -110,44 +104,17 @@ export const usePreviewContent = ({
     }
   }, [value, selectedTemplate, styleOptions, codeTheme])
 
-  useEffect(() => {
-    const updatePreview = async () => {
-      if (!value) {
-        setPreviewContent('')
-        return
-      }
-
-      setIsConverting(true)
-      try {
-        const content = getPreviewContent()
-        setPreviewContent(content)
-
-        // 等待 DOM 更新
-        await new Promise(resolve => setTimeout(resolve, 50))
-
-        // 渲染 Mermaid 图表
-        try {
-          await initializeMermaid()
-        } catch (error) {
-          console.error('Failed to initialize Mermaid:', error)
-        }
-      } catch (error) {
-        console.error('Error updating preview:', error)
-        toast({
-          variant: "destructive",
-          title: "预览更新失败",
-          description: "生成预览内容时发生错误",
-        })
-      } finally {
-        setIsConverting(false)
-      }
+  const previewContent = useMemo(() => {
+    try {
+      return getPreviewContent()
+    } catch (error) {
+      console.error('Error updating preview:', error)
+      return ''
     }
-
-    updatePreview()
-  }, [value, selectedTemplate, styleOptions, codeTheme, getPreviewContent, toast])
+  }, [getPreviewContent])
 
   return {
-    isConverting,
+    isConverting: false,
     previewContent,
     getPreviewContent
   }

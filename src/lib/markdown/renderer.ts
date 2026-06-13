@@ -1,9 +1,18 @@
-import { marked } from 'marked'
+import { Lexer, Marked, Parser, Renderer } from 'marked'
 import type { Tokens, TokenizerAndRendererExtension } from 'marked'
 import type { RendererOptions } from './types'
 import { cssPropertiesToString } from './styles'
 import { highlightCode } from './code-highlight'
 import katex from 'katex'
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
 
 // 自定义 LaTeX 块的 Token 类型
 interface LatexBlockToken extends Tokens.Generic {
@@ -20,12 +29,14 @@ interface MermaidBlockToken extends Tokens.Generic {
 }
 
 export class MarkdownRenderer {
-  private renderer: typeof marked.Renderer.prototype
+  private renderer: Renderer
+  private markedInstance: Marked
   private options: RendererOptions
 
-  constructor(options: RendererOptions) {
+  constructor(options: RendererOptions, markedInstance = new Marked()) {
     this.options = options
-    this.renderer = new marked.Renderer()
+    this.markedInstance = markedInstance
+    this.renderer = new Renderer()
     this.initializeRenderer()
     this.initializeLatexExtension()
     this.initializeMermaidExtension()
@@ -75,7 +86,7 @@ export class MarkdownRenderer {
     }
 
     // 注册扩展
-    marked.use({ extensions: [latexBlockTokenizer] })
+    this.markedInstance.use({ extensions: [latexBlockTokenizer] })
   }
 
   private initializeMermaidExtension() {
@@ -122,7 +133,7 @@ export class MarkdownRenderer {
 
           // Remove the random ID generation since it's not needed
           // Return a simple div with the mermaid class and content
-          return `<div${styleStr ? ` style="${styleStr}"` : ''} class="mermaid">${token.text}</div>`
+          return `<div${styleStr ? ` style="${styleStr}"` : ''} class="mermaid" data-mermaid-source="${encodeURIComponent(token.text)}">${escapeHtml(token.text)}</div>`
         } catch (error) {
           console.error('Mermaid rendering error:', error)
           return `<pre><code class="language-mermaid">${token.text}</code></pre>`
@@ -131,7 +142,7 @@ export class MarkdownRenderer {
     }
 
     // 注册扩展
-    marked.use({ extensions: [mermaidBlockTokenizer] })
+    this.markedInstance.use({ extensions: [mermaidBlockTokenizer] })
   }
 
   private initializeRenderer() {
@@ -160,8 +171,8 @@ export class MarkdownRenderer {
         ...headingStyle
       }
       const styleStr = cssPropertiesToString(style)
-      const tokens = marked.Lexer.lexInline(text)
-      const content = marked.Parser.parseInline(tokens, { renderer: this.renderer })
+      const tokens = Lexer.lexInline(text)
+      const content = Parser.parseInline(tokens, { renderer: this.renderer })
       if (depth === 2) {
         const proHeadingStyle = 'margin: 30px 0 15px; font-size: 20px; font-weight: bold; color: #000; border-bottom: 2px solid #000; padding-bottom: 5px; display: inline-block; color: #000000 !important; border-color: #000000 !important'
         return `<h2 style="${proHeadingStyle}"><span style="color: #000000 !important">${content}</span></h2>`
@@ -184,14 +195,14 @@ export class MarkdownRenderer {
       if (tokens) {
         content = tokens.map(token => {
           if (token.type === 'text') {
-            const inlineTokens = marked.Lexer.lexInline(token.text)
-            return marked.Parser.parseInline(inlineTokens, { renderer: this.renderer })
+            const inlineTokens = Lexer.lexInline(token.text)
+            return Parser.parseInline(inlineTokens, { renderer: this.renderer })
           }
-          return marked.Parser.parseInline([token], { renderer: this.renderer })
+          return Parser.parseInline([token], { renderer: this.renderer })
         }).join('')
       } else {
-        const inlineTokens = marked.Lexer.lexInline(text)
-        content = marked.Parser.parseInline(inlineTokens, { renderer: this.renderer })
+        const inlineTokens = Lexer.lexInline(text)
+        content = Parser.parseInline(inlineTokens, { renderer: this.renderer })
       }
 
       return `<p${styleStr ? ` style="${styleStr}"` : ''}>${content}</p>`
@@ -205,8 +216,8 @@ export class MarkdownRenderer {
         borderLeft: `4px solid ${this.options.base?.themeColor || '#1a1a1a'}`
       }
       const styleStr = cssPropertiesToString(style)
-      const tokens = marked.Lexer.lexInline(text)
-      const content = marked.Parser.parseInline(tokens, { renderer: this.renderer })
+      const tokens = Lexer.lexInline(text)
+      const content = Parser.parseInline(tokens, { renderer: this.renderer })
 
       return `<blockquote${styleStr ? ` style="${styleStr}"` : ''}>${content}</blockquote>`
     }
@@ -239,8 +250,8 @@ export class MarkdownRenderer {
         fontStyle: 'italic'
       }
       const styleStr = cssPropertiesToString(style)
-      const tokens = marked.Lexer.lexInline(text)
-      const content = marked.Parser.parseInline(tokens, { renderer: this.renderer })
+      const tokens = Lexer.lexInline(text)
+      const content = Parser.parseInline(tokens, { renderer: this.renderer })
 
       return `<em${styleStr ? ` style="${styleStr}"` : ''}>${content}</em>`    }
 
@@ -253,8 +264,8 @@ export class MarkdownRenderer {
         fontWeight: 'bold'
       }
       const styleStr = cssPropertiesToString(style)
-      const tokens = marked.Lexer.lexInline(text)
-      const content = marked.Parser.parseInline(tokens, { renderer: this.renderer })
+      const tokens = Lexer.lexInline(text)
+      const content = Parser.parseInline(tokens, { renderer: this.renderer })
 
       return `<strong${styleStr ? ` style="${styleStr}"` : ''}>${content}</strong>`
     }
@@ -346,8 +357,8 @@ export class MarkdownRenderer {
             })
 
             // 然后处理其他内联标记
-            const inlineTokens = marked.Lexer.lexInline(processedText)
-            return marked.Parser.parseInline(inlineTokens, { renderer: this.renderer })
+            const inlineTokens = Lexer.lexInline(processedText)
+            return Parser.parseInline(inlineTokens, { renderer: this.renderer })
           } else {
             // 对于其他类型的 token，直接使用其原始内容
             return token.raw
@@ -355,8 +366,8 @@ export class MarkdownRenderer {
         }).join('')
       } else {
         // 如果没有 tokens，则按普通文本处理
-        const inlineTokens = marked.Lexer.lexInline(content)
-        content = marked.Parser.parseInline(inlineTokens, { renderer: this.renderer })
+        const inlineTokens = Lexer.lexInline(content)
+        content = Parser.parseInline(inlineTokens, { renderer: this.renderer })
       }
 
       // 处理任务列表项
@@ -397,7 +408,7 @@ export class MarkdownRenderer {
       }
       const styleStr = cssPropertiesToString(style)
       const content = token.tokens?.length
-        ? marked.Parser.parseInline(token.tokens, { renderer: this.renderer })
+        ? Parser.parseInline(token.tokens, { renderer: this.renderer })
         : token.text
       const tag = token.header ? 'th' : 'td'
 
@@ -412,7 +423,7 @@ export class MarkdownRenderer {
     }
   }
 
-  public getRenderer(): typeof marked.Renderer.prototype {
+  public getRenderer(): Renderer {
     return this.renderer
   }
 }

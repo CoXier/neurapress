@@ -1,4 +1,4 @@
-import { marked } from 'marked'
+import { Marked } from 'marked'
 import type { RendererOptions } from './types'
 import { MarkdownRenderer } from './renderer'
 import { baseStylesToString } from './styles'
@@ -7,22 +7,24 @@ import type { Tokens } from 'marked'
 export class MarkdownParser {
   private options: RendererOptions
   private renderer: MarkdownRenderer
+  private markedInstance: Marked
 
   constructor(options: RendererOptions) {
     this.options = options
-    this.renderer = new MarkdownRenderer(options)
+    this.markedInstance = new Marked()
+    this.renderer = new MarkdownRenderer(options, this.markedInstance)
     this.initializeMarked()
   }
 
   private initializeMarked() {
-    marked.use({
+    this.markedInstance.use({
       gfm: true,
       breaks: true,
       async: false,
       pedantic: false
     })
 
-    marked.use({
+    this.markedInstance.use({
       breaks: true,
       gfm: true,
       walkTokens(token) {
@@ -38,7 +40,7 @@ export class MarkdownParser {
     })
 
     // 添加 Mermaid 支持
-    marked.use({
+    this.markedInstance.use({
       extensions: [{
         name: 'mermaid',
         level: 'block',
@@ -102,8 +104,7 @@ export class MarkdownParser {
               }).join('\n')
             }
 
-            console.log('Formatted Mermaid content:', formattedContent)
-            return `<div class="mermaid">\n${formattedContent}\n</div>`
+            return `<div class="mermaid" data-mermaid-source="${encodeURIComponent(formattedContent)}">\n${formattedContent}\n</div>`
           } catch (error: unknown) {
             console.error('Error processing Mermaid content:', error)
             const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -116,7 +117,7 @@ export class MarkdownParser {
 
   public parse(markdown: string): string {
     const preprocessed = this.preprocessMarkdown(markdown)
-    const html = marked.parse(preprocessed, { renderer: this.renderer.getRenderer() }) as string
+    const html = this.markedInstance.parse(preprocessed, { renderer: this.renderer.getRenderer() }) as string
     const baseStyles = baseStylesToString(this.options.base)
     return baseStyles ? `<section style="${baseStyles}">${html}</section>` : html
   }
@@ -129,4 +130,4 @@ export class MarkdownParser {
       // 处理无序列表的 - 标记，但排除代码块内的部分
       //.replace(/^(?!\s*```)([ \t]*)-\s+/gm, '$1• ')
   }
-} 
+}

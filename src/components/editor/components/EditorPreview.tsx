@@ -11,6 +11,15 @@ import '@/styles/code-themes.css'
 import mermaid from 'mermaid'
 import { useScrollSync } from '../hooks/useScrollSync'
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 interface EditorPreviewProps {
   previewRef: React.RefObject<HTMLDivElement>
   selectedTemplate?: string
@@ -83,7 +92,7 @@ export function EditorPreview({
         "prose prose-slate dark:prose-invert max-w-none",
         selectedTemplate && templates.find(t => t.id === selectedTemplate)?.styles
       )}>
-        <div 
+        <div
           className="px-6"
           dangerouslySetInnerHTML={{ __html: previewContent }}
         />
@@ -93,31 +102,33 @@ export function EditorPreview({
 
   // 渲染 Mermaid 图表
   useEffect(() => {
+    let isCancelled = false
+
     const renderMermaid = async () => {
       try {
-        const elements = document.querySelectorAll('.mermaid')
-        if (!elements.length) return
+        const elements = contentRef.current?.querySelectorAll<HTMLElement>('.mermaid')
+        if (!elements?.length) return
 
-        // 重新初始化所有图表
         await Promise.all(Array.from(elements).map(async (element) => {
+          let content = ''
           try {
-            // 获取内容
-            const content = element.textContent?.trim() || ''
+            const source = element.dataset.mermaidSource
+              ? decodeURIComponent(element.dataset.mermaidSource)
+              : element.textContent?.trim() || ''
+            content = source.trim()
             if (!content) return
 
-            // 清空容器
             element.innerHTML = ''
-            
-            // 重新渲染
+
             const { svg } = await mermaid.render(
               `mermaid-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
               content
             )
 
-            // 更新内容
+            if (isCancelled) return
+
             element.innerHTML = svg
 
-            // 添加暗色模式支持
             if (theme === 'dark') {
               const svgElement = element.querySelector('svg')
               if (svgElement) {
@@ -136,10 +147,10 @@ export function EditorPreview({
                   Failed to render diagram
                 </div>
                 <pre class="bg-white p-3 m-0 text-sm overflow-x-auto whitespace-pre-wrap break-all">
-                  ${element.textContent || ''}
+                  ${escapeHtml(content)}
                 </pre>
                 <div class="bg-red-50 p-3 text-red-600 text-sm border-t border-red-200">
-                  ${error instanceof Error ? error.message : 'Unknown error'}
+                  ${escapeHtml(error instanceof Error ? error.message : 'Unknown error')}
                 </div>
               </div>
             `
@@ -152,6 +163,10 @@ export function EditorPreview({
 
     if (!isConverting) {
       renderMermaid()
+    }
+
+    return () => {
+      isCancelled = true
     }
   }, [previewContent, theme, isConverting])
 
@@ -167,7 +182,7 @@ export function EditorPreview({
   }, [])
 
   return (
-    <div 
+    <div
       ref={previewRef}
       className={cn(
         "preview-container bg-background transition-all duration-300 ease-in-out flex flex-col",
@@ -227,7 +242,7 @@ export function EditorPreview({
         </div>
       )}
 
-      <div 
+      <div
         className="flex-1 overflow-y-auto"
         onScroll={handlePreviewScroll}
       >
@@ -238,7 +253,7 @@ export function EditorPreview({
               "bg-background mx-auto rounded-lg transition-all duration-300",
               previewSize === 'full' ? '' : 'border shadow-sm'
             )}
-            style={{ 
+            style={{
               width: PREVIEW_SIZES[previewSize].width,
               maxWidth: '100%',
               transform: `scale(${zoom / 100})`,
@@ -257,4 +272,4 @@ export function EditorPreview({
       </div>
     </div>
   )
-} 
+}
