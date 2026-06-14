@@ -87,17 +87,17 @@ export function ImageUploadSettingsDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CloudUpload className="h-5 w-5" />
-            图片上传设置
+            云端服务设置
           </DialogTitle>
           <DialogDescription>
-            使用你自己的 Cloudflare Worker 和 R2 存储图片，上传密钥只保存在当前浏览器。
+            使用你自己的 Cloudflare Worker 和 R2 存储图片与文章备份，上传密钥只保存在当前浏览器。
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="image-upload-endpoint">上传接口</Label>
+              <Label htmlFor="image-upload-endpoint">Worker 上传接口</Label>
               <Input
                 id="image-upload-endpoint"
                 value={endpoint}
@@ -156,7 +156,7 @@ export function ImageUploadSettingsDialog({
               <KeyRound className="h-4 w-4" />
               权限说明
             </div>
-            公开网站只会暴露上传接口地址。没有上传密钥的人无法写入你的 R2；每个用户也可以在这里换成自己的 Worker 和 token。
+            公开网站只会暴露 Worker 地址。没有上传密钥的人无法写入你的 R2；每个用户也可以在这里换成自己的 Worker 和 token。
           </div>
         </div>
 

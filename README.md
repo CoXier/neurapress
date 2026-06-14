@@ -129,11 +129,16 @@ docker run -p 3000:3000 [your-dockerhub-username]/neurapress:latest
    - 支持粘贴、拖拽或从工具栏选择图片
    - 图片上传到 Cloudflare R2 后会自动插入 Markdown 图片链接
    - 点击顶部"设置"可以配置自己的 Worker 上传接口和上传密钥
-   - 上传服务配置见 [workers/image-upload/README.md](workers/image-upload/README.md)
+   - 云端服务配置见 [workers/image-upload/README.md](workers/image-upload/README.md)
 
-### 图片上传配置
+6. **文章备份**
+   - 支持手动备份当前文章到 Cloudflare R2
+   - 支持从最近一次云端备份恢复
+   - 支持开启自动备份，编辑停顿约 30 秒后同步到云端
 
-1. 部署上传服务：
+### 云端服务配置
+
+1. 部署 Worker + R2 服务：
 
 ```bash
 cd workers/image-upload
@@ -149,7 +154,7 @@ pnpm wrangler deploy
 NEXT_PUBLIC_IMAGE_UPLOAD_ENDPOINT=https://your-worker.workers.dev/upload
 ```
 
-3. 重启本地开发服务。打开编辑器顶部"设置"，填写 Worker 的 `/upload` 地址和 `UPLOAD_TOKEN`。配置只保存在当前浏览器的 `localStorage` 中。
+3. 重启本地开发服务。打开编辑器顶部"设置"，填写 Worker 的 `/upload` 地址和 `UPLOAD_TOKEN`。图片上传与文章备份共用这套配置，只保存在当前浏览器的 `localStorage` 中。
 
 ## 技术栈
 

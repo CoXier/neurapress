@@ -1,15 +1,13 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback } from 'react'
 
 interface UseEditorKeyboardProps {
   value: string
   onChange: (value: string) => void
-  onSave: () => void
 }
 
 export const useEditorKeyboard = ({
   value,
-  onChange,
-  onSave
+  onChange
 }: UseEditorKeyboardProps) => {
   // 处理Tab键
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -30,18 +28,5 @@ export const useEditorKeyboard = ({
     }
   }, [value, onChange])
 
-  // 监听快捷键保存事件
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-        e.preventDefault()
-        onSave()
-      }
-    }
-    
-    window.addEventListener('keydown', handleGlobalKeyDown)
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
-  }, [onSave])
-
   return { handleKeyDown }
-} 
+}

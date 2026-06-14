@@ -7,9 +7,9 @@ export const PREVIEW_SIZES = {
 
 export type PreviewSize = keyof typeof PREVIEW_SIZES
 
-export const AUTO_SAVE_DELAY = 3000 // 自动保存延迟（毫秒）
+export const AUTO_SAVE_DELAY = 200 // 自动保存延迟（毫秒）
 
 export interface Article {
   content: string
   template: string
-} 
+}

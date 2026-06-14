@@ -1,6 +1,6 @@
-# NeuraPress Image Upload Worker
+# NeuraPress Cloud Worker
 
-Cloudflare Worker + R2 image upload service for the WeChat editor.
+Cloudflare Worker + R2 service for image uploads and article backups in the WeChat editor.
 
 ## Setup
 
@@ -59,4 +59,13 @@ NEXT_PUBLIC_IMAGE_UPLOAD_ENDPOINT=https://your-worker.workers.dev/upload
 
 Restart `next dev` after changing `.env.local`.
 
-The first time you upload an image, the editor will ask for the upload token and save it in local browser storage.
+Open the editor settings and fill in the Worker `/upload` URL plus `UPLOAD_TOKEN`. The token is saved only in local browser storage.
+
+## API
+
+All write APIs require an allowed `Origin` and the `UPLOAD_TOKEN`.
+
+- `POST /upload` uploads an image file from multipart field `file`.
+- `GET /file/<key>` serves an uploaded image.
+- `POST /articles/<deviceId>/<articleId>` saves the latest article backup.
+- `GET /articles/<deviceId>/<articleId>/latest` returns the latest article backup.

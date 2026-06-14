@@ -200,14 +200,7 @@ export function MarkdownToolbar({ onInsert, onImageUpload, isUploadingImage = fa
           )
         })}
         <Separator orientation="vertical" className="mx-1 h-6" />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <MarkdownCheatSheet />
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            <p>Markdown 语法帮助</p>
-          </TooltipContent>
-        </Tooltip>
+        <MarkdownCheatSheet />
       </div>
     </TooltipProvider>
   )

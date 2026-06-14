@@ -15,6 +15,22 @@ export function normalizeImageUploadEndpoint(endpoint: string) {
   return normalized.endsWith('/') ? normalized.slice(0, -1) : normalized
 }
 
+export function getWorkerBaseUrl(endpoint: string) {
+  const normalized = normalizeImageUploadEndpoint(endpoint)
+  if (!normalized) return ''
+
+  try {
+    const url = new URL(normalized)
+    const pathname = url.pathname.replace(/\/upload$/, '')
+    url.pathname = pathname || '/'
+    url.search = ''
+    url.hash = ''
+    return url.toString().replace(/\/$/, '')
+  } catch {
+    return ''
+  }
+}
+
 export function getImageUploadSettings(): ImageUploadSettings {
   if (typeof window === 'undefined') {
     return {

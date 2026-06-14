@@ -79,7 +79,7 @@ export function MarkdownCheatSheet() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Markdown 语法帮助">
           <HelpCircle className="h-4 w-4" />
         </Button>
       </DialogTrigger>
@@ -109,4 +109,4 @@ export function MarkdownCheatSheet() {
       </DialogContent>
     </Dialog>
   )
-} 
+}

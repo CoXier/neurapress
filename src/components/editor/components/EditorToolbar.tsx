@@ -1,42 +1,93 @@
 'use client'
 
-import { Copy, Save, Settings, Smartphone, Trash2 } from 'lucide-react'
+import { Archive, Copy, Loader2, Settings, Smartphone, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { ArticleList } from '@/components/ArticleList'
 import { Logo } from '@/components/icons/Logo'
 import { ToastAction } from '@/components/ui/toast'
 import { useToast } from '@/components/ui/use-toast'
 import { cn } from '@/lib/utils'
+import { ArticleBackupDialog } from './ArticleBackupDialog'
 import { ImageUploadSettingsDialog } from './ImageUploadSettingsDialog'
+import { type LocalArticleBackupStatus } from '@/lib/local-articles'
 
 interface EditorToolbarProps {
   value: string
   isDraft: boolean
   showPreview: boolean
-  onSave: () => void
   onCopyPreview: () => Promise<boolean>
   onNewArticle: () => void
-  onArticleSelect: (article: { content: string, template: string }) => void
+  onArticleSelect: (article: { id?: string; content: string, template: string }) => void
   onPreviewToggle: () => void
   onClear: () => void
   imageUploadSettingsOpen: boolean
   onImageUploadSettingsOpenChange: (open: boolean) => void
+  articleBackupOpen: boolean
+  onArticleBackupOpenChange: (open: boolean) => void
+  articleId: string
+  autoBackupEnabled: boolean
+  lastBackupAt: string
+  backupStatus: LocalArticleBackupStatus
+  onAutoBackupChange: (enabled: boolean) => void
+  onLastBackupAtChange: (value: string) => void
+  onRestoreBackup: (content: string) => void
+}
+
+function getBackupButtonState(status: LocalArticleBackupStatus) {
+  if (status === 'backed_up') {
+    return {
+      label: '已备份',
+      icon: <Archive className="h-4 w-4" />,
+      className: 'bg-muted text-muted-foreground hover:bg-muted/90'
+    }
+  }
+
+  if (status === 'backing_up') {
+    return {
+      label: '备份中',
+      icon: <Loader2 className="h-4 w-4 animate-spin" />,
+      className: 'bg-primary text-primary-foreground hover:bg-primary/90'
+    }
+  }
+
+  if (status === 'failed') {
+    return {
+      label: '备份失败',
+      icon: <Archive className="h-4 w-4" />,
+      className: 'bg-primary text-primary-foreground hover:bg-primary/90'
+    }
+  }
+
+  return {
+    label: '未备份',
+    icon: <Archive className="h-4 w-4" />,
+    className: 'bg-primary text-primary-foreground hover:bg-primary/90'
+  }
 }
 
 export function EditorToolbar({
   value,
   isDraft,
   showPreview,
-  onSave,
   onCopyPreview,
   onNewArticle,
   onArticleSelect,
   onPreviewToggle,
   onClear,
   imageUploadSettingsOpen,
-  onImageUploadSettingsOpenChange
+  onImageUploadSettingsOpenChange,
+  articleBackupOpen,
+  onArticleBackupOpenChange,
+  articleId,
+  autoBackupEnabled,
+  lastBackupAt,
+  backupStatus,
+  onAutoBackupChange,
+  onLastBackupAtChange,
+  onRestoreBackup
 }: EditorToolbarProps) {
   const { toast } = useToast()
+  const backupButtonState = getBackupButtonState(backupStatus)
 
   const handleCopyPreview = async () => {
     try {
@@ -78,8 +129,13 @@ export function EditorToolbar({
               <div className="hidden sm:block">
                 <ArticleList
                   onSelect={onArticleSelect}
-                  currentContent={value}
                   onNew={onNewArticle}
+                  onOpenSettings={() => onImageUploadSettingsOpenChange(true)}
+                  onArticleBackupComplete={(localArticleId, updatedAt) => {
+                    if (articleId === `local_${localArticleId}`) {
+                      onLastBackupAtChange(updatedAt)
+                    }
+                  }}
                 />
               </div>
               <button
@@ -97,7 +153,7 @@ export function EditorToolbar({
             </div>
             <div className="flex items-center gap-4">
               <span className="text-sm text-muted-foreground hidden sm:inline">
-                {isDraft ? '未保存' : '已保存'}
+                {isDraft ? '自动保存中' : '已自动保存'}
               </span>
               <button
                 onClick={() => onImageUploadSettingsOpenChange(true)}
@@ -107,16 +163,14 @@ export function EditorToolbar({
                 <span className="hidden sm:inline">设置</span>
               </button>
               <button
-                onClick={onSave}
+                onClick={() => onArticleBackupOpenChange(true)}
                 className={cn(
-                  'inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors hidden sm:inline-flex',
-                  isDraft
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    : 'bg-muted text-muted-foreground hover:bg-muted/90'
+                  'inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors',
+                  backupButtonState.className
                 )}
               >
-                <Save className="h-4 w-4" />
-                <span>保存</span>
+                {backupButtonState.icon}
+                <span className="hidden sm:inline">{backupButtonState.label}</span>
               </button>
               <button
                 onClick={onClear}
@@ -139,6 +193,19 @@ export function EditorToolbar({
       <ImageUploadSettingsDialog
         open={imageUploadSettingsOpen}
         onOpenChange={onImageUploadSettingsOpenChange}
+      />
+      <ArticleBackupDialog
+        open={articleBackupOpen}
+        onOpenChange={onArticleBackupOpenChange}
+        articleId={articleId}
+        content={value}
+        autoBackupEnabled={autoBackupEnabled}
+        lastBackupAt={lastBackupAt}
+        backupStatus={backupStatus}
+        onAutoBackupChange={onAutoBackupChange}
+        onLastBackupAtChange={onLastBackupAtChange}
+        onRestore={onRestoreBackup}
+        onOpenSettings={() => onImageUploadSettingsOpenChange(true)}
       />
     </div>
   )

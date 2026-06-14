@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useToast } from '@/components/ui/use-toast'
-import { ToastAction } from '@/components/ui/toast'
 import { type RendererOptions } from '@/lib/markdown'
 import { useAutoSave } from './hooks/useAutoSave'
 import { EditorToolbar } from './components/EditorToolbar'
@@ -19,6 +18,24 @@ import { useImageUpload } from './hooks/useImageUpload'
 import { MobileEditor } from './components/MobileEditor'
 import { DesktopEditor } from './components/DesktopEditor'
 import { getExampleContent } from '@/lib/utils/loadExampleContent'
+import {
+  createBackupArticleId,
+  getArticleBackupConfig,
+  getArticleTitleFromMarkdown,
+  getAutoBackupEnabled,
+  getCurrentBackupArticleId,
+  getLastBackupAt,
+  saveArticleBackup,
+  setCurrentBackupArticleId
+} from '@/lib/article-backup'
+import {
+  ARTICLES_UPDATED_EVENT,
+  getCloudArticleId,
+  loadLocalArticles,
+  type LocalArticleBackupStatus,
+  upsertLocalArticleContent,
+  updateLocalArticleBackupStatus
+} from '@/lib/local-articles'
 
 const fixedStyleOptions: RendererOptions = {}
 const defaultCodeTheme: CodeThemeId = 'github'
@@ -41,10 +58,16 @@ export default function WechatEditor() {
   const [previewSize, setPreviewSize] = useState<PreviewSize>('medium')
   const [isDraft, setIsDraft] = useState(false)
   const [imageUploadSettingsOpen, setImageUploadSettingsOpen] = useState(false)
+  const [articleBackupOpen, setArticleBackupOpen] = useState(false)
+  const [articleId, setArticleId] = useState('')
+  const [localArticleId, setLocalArticleId] = useState('')
+  const [backupStatus, setBackupStatus] = useState<LocalArticleBackupStatus>('not_backed_up')
+  const [autoBackupEnabled, setAutoBackupEnabledState] = useState(false)
+  const [lastBackupAt, setLastBackupAtState] = useState('')
   const codeTheme = defaultCodeTheme
 
   // 使用自定义 hooks
-  const { handleEditorChange } = useAutoSave(value, setIsDraft)
+  const { handleEditorChange } = useAutoSave(setIsDraft)
   const { handleEditorScroll } = useScrollSync()
 
   // 清除编辑器内容
@@ -60,26 +83,6 @@ export default function WechatEditor() {
     }
   }, [handleEditorChange, toast])
 
-  // 手动保存
-  const handleSave = useCallback(() => {
-    try {
-      localStorage.setItem('wechat_editor_content', value)
-      setIsDraft(false)
-      toast({
-        title: "保存成功",
-        description: "内容已保存到本地",
-        duration: 3000
-      })
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "保存失败",
-        description: "无法保存内容，请检查浏览器存储空间",
-        action: <ToastAction altText="重试">重试</ToastAction>,
-      })
-    }
-  }, [value, toast])
-
   const { isConverting, previewContent } = usePreviewContent({
     value,
     selectedTemplate,
@@ -92,8 +95,7 @@ export default function WechatEditor() {
     onChange: (newValue) => {
       setValue(newValue)
       handleEditorChange(newValue)
-    },
-    onSave: handleSave
+    }
   })
 
   // 处理编辑器输入
@@ -148,21 +150,12 @@ export default function WechatEditor() {
     return success
   }, [copyToClipboard, toast, previewRef])
 
-  // 处理放弃草稿
-  const handleDiscardDraft = useCallback(() => {
-    const savedContent = localStorage.getItem('wechat_editor_content')
-    localStorage.removeItem('wechat_editor_draft')
-    setValue(savedContent || '')
-    setIsDraft(false)
-    toast({
-      title: "已放弃草稿",
-      description: "已恢复到上次保存的内容",
-      duration: 2000
-    })
-  }, [toast])
-
   // 处理文章选择
-  const handleArticleSelect = useCallback((article: { content: string, template: string }) => {
+  const handleArticleSelect = useCallback((article: { id?: string; content: string; template: string }) => {
+    const nextArticleId = article.id ? getCloudArticleId(article.id) : createBackupArticleId()
+    setLocalArticleId(article.id || '')
+    setCurrentBackupArticleId(nextArticleId)
+    setArticleId(nextArticleId)
     setValue(article.content)
     setIsDraft(false)
     toast({
@@ -172,30 +165,65 @@ export default function WechatEditor() {
     })
   }, [toast])
 
-  // 处理新建文章
-  const handleNewArticle = useCallback(() => {
-    if (isDraft) {
-      toast({
-        title: "提示",
-        description: "当前文章未保存，是否继续？",
-        action: (
-          <ToastAction altText="继续" onClick={() => {
-            const exampleContent = getExampleContent()
-            setValue(exampleContent)
-            setIsDraft(false)
-          }}>
-            继续
-          </ToastAction>
-        ),
-        duration: 5000,
-      })
-      return
+  const persistLocalArticle = useCallback((content: string) => {
+    if (!content.trim() && !localArticleId) {
+      localStorage.setItem('wechat_editor_content', content)
+      localStorage.removeItem('wechat_editor_draft')
+      setIsDraft(false)
+      return null
     }
 
+    const article = upsertLocalArticleContent({
+      id: localArticleId || undefined,
+      content,
+      template: selectedTemplate
+    })
+    const cloudArticleId = getCloudArticleId(article.id)
+
+    if (!localArticleId) {
+      setLocalArticleId(article.id)
+    }
+
+    setBackupStatus(article.backupStatus || 'not_backed_up')
+
+    if (articleId !== cloudArticleId) {
+      setArticleId(cloudArticleId)
+      setCurrentBackupArticleId(cloudArticleId)
+    }
+
+    localStorage.setItem('wechat_editor_content', content)
+    localStorage.removeItem('wechat_editor_draft')
+    setIsDraft(false)
+    return article
+  }, [articleId, localArticleId, selectedTemplate])
+
+  // 处理新建文章
+  const handleNewArticle = useCallback(() => {
+    persistLocalArticle(value)
     const exampleContent = getExampleContent()
+    setLocalArticleId('')
+    setArticleId(createBackupArticleId())
     setValue(exampleContent)
     setIsDraft(false)
-  }, [isDraft, toast])
+  }, [persistLocalArticle, value])
+
+  const handleRestoreBackup = useCallback((content: string) => {
+    setValue(content)
+    handleEditorChange(content)
+    setIsDraft(true)
+  }, [handleEditorChange])
+
+  const handleBackupComplete = useCallback((updatedAt: string) => {
+    setLastBackupAtState(updatedAt)
+    setBackupStatus('backed_up')
+
+    if (localArticleId) {
+      updateLocalArticleBackupStatus(localArticleId, 'backed_up', {
+        backedUpAt: updatedAt,
+        backupError: ''
+      })
+    }
+  }, [localArticleId])
 
   const insertTextAtCursor = useCallback((text: string) => {
     const textarea = textareaRef.current
@@ -291,6 +319,71 @@ export default function WechatEditor() {
     return window.innerWidth < 640
   }, [])
 
+  useEffect(() => {
+    const currentArticleId = getCurrentBackupArticleId()
+    setArticleId(currentArticleId)
+    setLocalArticleId(currentArticleId.startsWith('local_') ? currentArticleId.slice('local_'.length) : '')
+    setAutoBackupEnabledState(getAutoBackupEnabled())
+    setLastBackupAtState(getLastBackupAt())
+  }, [])
+
+  useEffect(() => {
+    if (!localArticleId) {
+      setBackupStatus('not_backed_up')
+      return
+    }
+
+    const syncBackupStatus = () => {
+      const article = loadLocalArticles().find(item => item.id === localArticleId)
+      setBackupStatus(article?.backupStatus || 'not_backed_up')
+      if (article?.backedUpAt) {
+        setLastBackupAtState(article.backedUpAt)
+      }
+    }
+
+    syncBackupStatus()
+    window.addEventListener(ARTICLES_UPDATED_EVENT, syncBackupStatus)
+    return () => window.removeEventListener(ARTICLES_UPDATED_EVENT, syncBackupStatus)
+  }, [localArticleId])
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      persistLocalArticle(value)
+    }, 200)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [persistLocalArticle, value])
+
+  useEffect(() => {
+    if (!autoBackupEnabled || !articleId || !value.trim()) return
+
+    const { baseUrl, token } = getArticleBackupConfig()
+    if (!baseUrl || !token) return
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const result = await saveArticleBackup({
+          articleId,
+          title: getArticleTitleFromMarkdown(value),
+          content: value,
+          mode: 'auto'
+        })
+        setLastBackupAtState(result.article.updatedAt)
+        if (localArticleId) {
+          updateLocalArticleBackupStatus(localArticleId, 'backed_up', {
+            backedUpAt: result.article.updatedAt,
+            backupError: ''
+          })
+          setBackupStatus('backed_up')
+        }
+      } catch (error) {
+        console.warn('Auto backup failed:', error)
+      }
+    }, 30000)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [articleId, autoBackupEnabled, localArticleId, value])
+
   // 自动切换预览模式
   useEffect(() => {
     const handleResize = () => {
@@ -308,17 +401,13 @@ export default function WechatEditor() {
   useEffect(() => {
     const draftContent = localStorage.getItem('wechat_editor_draft')
     const savedContent = localStorage.getItem('wechat_editor_content')
-    
-    if (draftContent) {
-      setValue(draftContent)
-      setIsDraft(true)
-      toast({
-        description: "已恢复未保存的草稿",
-        action: <ToastAction altText="放弃" onClick={handleDiscardDraft}>放弃草稿</ToastAction>,
-        duration: 5000,
-      })
-    } else if (savedContent) {
-      setValue(savedContent)
+    const initialContent = draftContent || savedContent
+
+    localStorage.removeItem('wechat_editor_draft')
+
+    if (initialContent) {
+      setValue(initialContent)
+      setIsDraft(false)
     } else {
       // 如果没有保存的内容或草稿，则加载示例内容
       const exampleContent = getExampleContent()
@@ -329,7 +418,7 @@ export default function WechatEditor() {
         duration: 3000,
       })
     }
-  }, [toast, handleDiscardDraft])
+  }, [toast])
 
   const { wordCount, readingTime } = useWordStats(value)
 
@@ -340,7 +429,6 @@ export default function WechatEditor() {
         value={value}
         isDraft={isDraft}
         showPreview={showPreview}
-        onSave={handleSave}
         onCopyPreview={handleCopy}
         onNewArticle={handleNewArticle}
         onArticleSelect={handleArticleSelect}
@@ -348,6 +436,15 @@ export default function WechatEditor() {
         onClear={handleClear}
         imageUploadSettingsOpen={imageUploadSettingsOpen}
         onImageUploadSettingsOpenChange={setImageUploadSettingsOpen}
+        articleBackupOpen={articleBackupOpen}
+        onArticleBackupOpenChange={setArticleBackupOpen}
+        articleId={articleId}
+        autoBackupEnabled={autoBackupEnabled}
+        lastBackupAt={lastBackupAt}
+        backupStatus={backupStatus}
+        onAutoBackupChange={setAutoBackupEnabledState}
+        onLastBackupAtChange={handleBackupComplete}
+        onRestoreBackup={handleRestoreBackup}
       />
 
       {/* 编辑器主体 */}

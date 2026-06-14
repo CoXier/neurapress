@@ -13,6 +13,25 @@ type UploadResult = {
   contentType: string
 }
 
+type ArticleBackupPayload = {
+  title?: string
+  content?: string
+  source?: string
+  mode?: string
+  clientUpdatedAt?: string
+}
+
+type ArticleBackup = {
+  id: string
+  title: string
+  content: string
+  source: string
+  mode: string
+  wordCount: number
+  createdAt: string
+  updatedAt: string
+}
+
 type UploadedFile = {
   name?: string
   type: string
@@ -21,6 +40,7 @@ type UploadedFile = {
 }
 
 const DEFAULT_MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+const MAX_ARTICLE_BYTES = 2 * 1024 * 1024
 
 const EXTENSIONS: Record<string, string> = {
   'image/gif': 'gif',
@@ -91,6 +111,18 @@ function isAuthorized(request: Request, env: Env) {
   return getBearerToken(request) === env.UPLOAD_TOKEN
 }
 
+function requireApiAccess(request: Request, env: Env) {
+  if (!isOriginAllowed(request.headers.get('origin'), env)) {
+    return json(request, env, { error: 'ORIGIN_NOT_ALLOWED' }, 403)
+  }
+
+  if (!isAuthorized(request, env)) {
+    return unauthorized(request, env)
+  }
+
+  return null
+}
+
 function getMaxUploadBytes(env: Env) {
   const parsed = Number(env.MAX_UPLOAD_BYTES)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_UPLOAD_BYTES
@@ -147,13 +179,8 @@ async function getFileFromRequest(request: Request): Promise<UploadedFile | null
 }
 
 async function handleUpload(request: Request, env: Env) {
-  if (!isOriginAllowed(request.headers.get('origin'), env)) {
-    return json(request, env, { error: 'ORIGIN_NOT_ALLOWED' }, 403)
-  }
-
-  if (!isAuthorized(request, env)) {
-    return unauthorized(request, env)
-  }
+  const accessError = requireApiAccess(request, env)
+  if (accessError) return accessError
 
   const file = await getFileFromRequest(request)
   if (!file) {
@@ -217,6 +244,134 @@ async function handleFile(request: Request, env: Env, key: string) {
   })
 }
 
+function safePathSegment(value: string) {
+  return value.trim().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80)
+}
+
+function articleLatestKey(deviceId: string, articleId: string) {
+  return `articles/${deviceId}/${articleId}/latest.json`
+}
+
+function getWordCount(content: string) {
+  return content.replace(/\s+/g, '').length
+}
+
+async function readArticleBackup(object: R2ObjectBody | null): Promise<ArticleBackup | null> {
+  if (!object) return null
+
+  try {
+    return await object.json<ArticleBackup>()
+  } catch {
+    return null
+  }
+}
+
+async function readArticlePayload(request: Request): Promise<ArticleBackupPayload | null> {
+  const contentType = request.headers.get('content-type') || ''
+  if (!contentType.includes('application/json')) return null
+
+  const raw = await request.text()
+  if (new TextEncoder().encode(raw).byteLength > MAX_ARTICLE_BYTES) {
+    throw new Error('ARTICLE_TOO_LARGE')
+  }
+
+  try {
+    return JSON.parse(raw) as ArticleBackupPayload
+  } catch {
+    return null
+  }
+}
+
+async function handleCreateArticleBackup(request: Request, env: Env, deviceId: string, articleId: string) {
+  const accessError = requireApiAccess(request, env)
+  if (accessError) return accessError
+
+  let payload: ArticleBackupPayload | null = null
+  try {
+    payload = await readArticlePayload(request)
+  } catch (error) {
+    if (error instanceof Error && error.message === 'ARTICLE_TOO_LARGE') {
+      return json(request, env, { error: 'ARTICLE_TOO_LARGE', maxArticleBytes: MAX_ARTICLE_BYTES }, 413)
+    }
+
+    throw error
+  }
+
+  if (!payload || typeof payload.content !== 'string') {
+    return json(request, env, { error: 'INVALID_ARTICLE_PAYLOAD' }, 400)
+  }
+
+  const latestKey = articleLatestKey(deviceId, articleId)
+  const latest = await readArticleBackup(await env.IMAGES.get(latestKey))
+  const now = new Date()
+  const updatedAt = now.toISOString()
+  const title = (payload.title || '未命名文章').trim().slice(0, 120) || '未命名文章'
+  const content = payload.content
+
+  const backup: ArticleBackup = {
+    id: articleId,
+    title,
+    content,
+    source: payload.source || 'wechat',
+    mode: payload.mode || 'manual',
+    wordCount: getWordCount(content),
+    createdAt: latest?.createdAt || payload.clientUpdatedAt || updatedAt,
+    updatedAt
+  }
+
+  const body = JSON.stringify(backup)
+  const metadata = {
+    title,
+    articleId,
+    mode: backup.mode,
+    wordCount: String(backup.wordCount),
+    updatedAt
+  }
+
+  await env.IMAGES.put(latestKey, body, {
+    httpMetadata: {
+      contentType: 'application/json; charset=utf-8'
+    },
+    customMetadata: metadata
+  })
+
+  return json(request, env, {
+    article: {
+      id: backup.id,
+      title: backup.title,
+      wordCount: backup.wordCount,
+      updatedAt: backup.updatedAt
+    }
+  })
+}
+
+async function handleGetLatestArticle(request: Request, env: Env, deviceId: string, articleId: string) {
+  const accessError = requireApiAccess(request, env)
+  if (accessError) return accessError
+
+  const backup = await readArticleBackup(await env.IMAGES.get(articleLatestKey(deviceId, articleId)))
+  if (!backup) return json(request, env, { error: 'ARTICLE_NOT_FOUND' }, 404)
+
+  return json(request, env, { article: backup })
+}
+
+function getArticleRoute(pathname: string) {
+  const parts = pathname.split('/').filter(Boolean)
+  if (parts[0] !== 'articles') return null
+
+  const deviceId = safePathSegment(parts[1] || '')
+  const articleId = safePathSegment(parts[2] || '')
+  const action = parts[3] || ''
+
+  if (!deviceId || !articleId) return null
+
+  return {
+    deviceId,
+    articleId,
+    action
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
@@ -234,6 +389,19 @@ export default {
 
     if (url.pathname.startsWith('/file/') && (request.method === 'GET' || request.method === 'HEAD')) {
       return handleFile(request, env, decodeURIComponent(url.pathname.slice('/file/'.length)))
+    }
+
+    const articleRoute = getArticleRoute(url.pathname)
+    if (articleRoute) {
+      const { deviceId, articleId, action } = articleRoute
+
+      if (!action && request.method === 'POST') {
+        return handleCreateArticleBackup(request, env, deviceId, articleId)
+      }
+
+      if (action === 'latest' && request.method === 'GET') {
+        return handleGetLatestArticle(request, env, deviceId, articleId)
+      }
     }
 
     return json(request, env, { error: 'NOT_FOUND' }, 404)

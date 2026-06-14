@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -20,85 +19,177 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { FileText, Trash2, Menu, Plus, Save, Edit2, Check } from 'lucide-react'
+import {
+  AlertCircle,
+  Check,
+  CheckCircle2,
+  CloudOff,
+  CloudUpload,
+  Edit2,
+  FileText,
+  Loader2,
+  Menu,
+  Plus,
+  Trash2
+} from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
-import { ToastAction } from '@/components/ui/toast'
 import { Input } from '@/components/ui/input'
-
-interface Article {
-  id: string
-  title: string
-  content: string
-  template: string
-  createdAt: number
-  updatedAt: number
-}
+import {
+  getArticleBackupConfig,
+  saveArticleBackup
+} from '@/lib/article-backup'
+import {
+  ARTICLES_UPDATED_EVENT,
+  getCloudArticleId,
+  loadLocalArticles,
+  type LocalArticle,
+  type LocalArticleBackupStatus,
+  updateLocalArticleBackupStatus,
+  saveLocalArticles
+} from '@/lib/local-articles'
 
 interface ArticleListProps {
-  onSelect: (article: Article) => void
-  currentContent?: string
+  onSelect: (article: LocalArticle) => void
   onNew?: () => void
+  onOpenSettings?: () => void
+  onArticleBackupComplete?: (articleId: string, updatedAt: string) => void
 }
 
-export function ArticleList({ onSelect, currentContent, onNew }: ArticleListProps) {
+function getBackupStatus(article: LocalArticle): LocalArticleBackupStatus {
+  return article.backupStatus || 'not_backed_up'
+}
+
+function BackupStatusBadge({ article }: { article: LocalArticle }) {
+  const status = getBackupStatus(article)
+
+  if (status === 'backing_up') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        备份中
+      </span>
+    )
+  }
+
+  if (status === 'backed_up') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
+        <CheckCircle2 className="h-3 w-3" />
+        已备份
+      </span>
+    )
+  }
+
+  if (status === 'failed') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-destructive">
+        <AlertCircle className="h-3 w-3" />
+        备份失败
+      </span>
+    )
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-amber-600">
+      <CloudOff className="h-3 w-3" />
+      未备份
+    </span>
+  )
+}
+
+export function ArticleList({
+  onSelect,
+  onNew,
+  onOpenSettings,
+  onArticleBackupComplete
+}: ArticleListProps) {
   const { toast } = useToast()
-  const [articles, setArticles] = useState<Article[]>([])
-  const [articleToDelete, setArticleToDelete] = useState<Article | null>(null)
+  const [articles, setArticles] = useState<LocalArticle[]>([])
+  const [articleToDelete, setArticleToDelete] = useState<LocalArticle | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
   const [isOpen, setIsOpen] = useState(false)
+  const [isBackingUpAll, setIsBackingUpAll] = useState(false)
+  const allArticlesBackedUp = articles.length > 0 && articles.every(article => getBackupStatus(article) === 'backed_up')
 
   // 加载文章列表
   useEffect(() => {
-    const savedArticles = localStorage.getItem('wechat_articles')
-    if (savedArticles) {
-      try {
-        const parsed = JSON.parse(savedArticles)
-        setArticles(Array.isArray(parsed) ? parsed : [])
-      } catch (error) {
-        console.error('Failed to parse saved articles:', error)
-      }
-    }
+    const syncArticles = () => setArticles(loadLocalArticles())
+
+    syncArticles()
+    window.addEventListener(ARTICLES_UPDATED_EVENT, syncArticles)
+    return () => window.removeEventListener(ARTICLES_UPDATED_EVENT, syncArticles)
   }, [])
 
-  // 保存当前文章
-  const saveCurrentArticle = () => {
-    if (!currentContent) {
+  const markBackupStatus = (
+    articleId: string,
+    status: LocalArticleBackupStatus,
+    extra: Partial<Pick<LocalArticle, 'backedUpAt' | 'backupError'>> = {}
+  ) => {
+    const nextArticles = updateLocalArticleBackupStatus(articleId, status, extra)
+    setArticles(nextArticles)
+  }
+
+  const backupAllArticles = async () => {
+    if (articles.length === 0 || isBackingUpAll || allArticlesBackedUp) return
+
+    const { baseUrl, token } = getArticleBackupConfig()
+    if (!baseUrl || !token) {
+      onOpenSettings?.()
       toast({
         variant: "destructive",
-        title: "保存失败",
-        description: "当前没有可保存的内容",
-        duration: 2000
+        title: "需要配置云端服务",
+        description: "请先填写 Worker 上传接口和上传密钥",
+        duration: 2500
       })
       return
     }
 
-    const title = currentContent.split('\n')[0]?.replace(/^#*\s*/, '') || '未命名文章'
-    const newArticle: Article = {
-      id: Date.now().toString(),
-      title,
-      content: currentContent,
-      template: 'default', // 默认模板
-      createdAt: Date.now(),
-      updatedAt: Date.now()
+    setIsBackingUpAll(true)
+    let successCount = 0
+    let failedCount = 0
+
+    for (const article of articles) {
+      if (!article.content.trim()) continue
+
+      markBackupStatus(article.id, 'backing_up', { backupError: '' })
+      try {
+        const result = await saveArticleBackup({
+          articleId: getCloudArticleId(article.id),
+          title: article.title,
+          content: article.content,
+          mode: 'manual'
+        })
+
+        successCount += 1
+        markBackupStatus(article.id, 'backed_up', {
+          backedUpAt: result.article.updatedAt,
+          backupError: ''
+        })
+        onArticleBackupComplete?.(article.id, result.article.updatedAt)
+      } catch (error) {
+        failedCount += 1
+        markBackupStatus(article.id, 'failed', {
+          backupError: error instanceof Error ? error.message : '备份失败'
+        })
+      }
     }
 
-    const updatedArticles = [newArticle, ...articles]
-    setArticles(updatedArticles)
-    localStorage.setItem('wechat_articles', JSON.stringify(updatedArticles))
-
+    setIsBackingUpAll(false)
     toast({
-      title: "保存成功",
-      description: `已保存文章：${title}`,
-      duration: 2000
+      variant: failedCount > 0 ? "destructive" : "default",
+      title: failedCount > 0 ? "部分文章备份失败" : "全部文章已备份",
+      description: failedCount > 0
+        ? `${successCount} 篇成功，${failedCount} 篇失败`
+        : `${successCount} 篇文章已保存到 R2`,
+      duration: 3000
     })
   }
 
   // 删除文章
-  const deleteArticle = (article: Article) => {
+  const deleteArticle = (article: LocalArticle) => {
     setArticleToDelete(article)
   }
 
@@ -108,7 +199,7 @@ export function ArticleList({ onSelect, currentContent, onNew }: ArticleListProp
 
     const updatedArticles = articles.filter(article => article.id !== articleToDelete.id)
     setArticles(updatedArticles)
-    localStorage.setItem('wechat_articles', JSON.stringify(updatedArticles))
+    saveLocalArticles(updatedArticles)
     setArticleToDelete(null)
 
     toast({
@@ -128,7 +219,7 @@ export function ArticleList({ onSelect, currentContent, onNew }: ArticleListProp
     }
 
     // 默认的新建文章处理
-    const newArticle: Article = {
+    const newArticle: LocalArticle = {
       id: Date.now().toString(),
       title: '新文章',
       content: `# 新文章
@@ -148,18 +239,19 @@ export function ArticleList({ onSelect, currentContent, onNew }: ArticleListProp
 `,
       template: 'default',
       createdAt: Date.now(),
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
+      backupStatus: 'not_backed_up'
     }
 
     // 保存新文章到本地存储
     const updatedArticles = [newArticle, ...articles]
     setArticles(updatedArticles)
-    localStorage.setItem('wechat_articles', JSON.stringify(updatedArticles))
+    saveLocalArticles(updatedArticles)
 
     // 选中新文章并关闭列表
     onSelect(newArticle)
     setIsOpen(false)
-    
+
     toast({
       title: "新建成功",
       description: "已创建新文章，开始写作吧！",
@@ -168,13 +260,13 @@ export function ArticleList({ onSelect, currentContent, onNew }: ArticleListProp
   }
 
   // 开始重命名
-  const startRename = (article: Article) => {
+  const startRename = (article: LocalArticle) => {
     setEditingId(article.id)
     setEditingTitle(article.title)
   }
 
   // 保存重命名
-  const saveRename = (article: Article) => {
+  const saveRename = (article: LocalArticle) => {
     if (!editingTitle.trim()) {
       toast({
         variant: "destructive",
@@ -190,14 +282,16 @@ export function ArticleList({ onSelect, currentContent, onNew }: ArticleListProp
         return {
           ...a,
           title: editingTitle.trim(),
-          updatedAt: Date.now()
+          updatedAt: Date.now(),
+          backupStatus: 'not_backed_up' as LocalArticleBackupStatus,
+          backupError: ''
         }
       }
       return a
     })
 
     setArticles(updatedArticles)
-    localStorage.setItem('wechat_articles', JSON.stringify(updatedArticles))
+    saveLocalArticles(updatedArticles)
     setEditingId(null)
     setEditingTitle('')
 
@@ -236,9 +330,19 @@ export function ArticleList({ onSelect, currentContent, onNew }: ArticleListProp
                 <Plus className="h-4 w-4 mr-2" />
                 新建文章
               </Button>
-              <Button onClick={saveCurrentArticle} className="flex-1">
-                <Save className="h-4 w-4 mr-2" />
-                保存当前
+              <Button
+                onClick={backupAllArticles}
+                className="flex-1"
+                disabled={articles.length === 0 || isBackingUpAll || allArticlesBackedUp}
+              >
+                {isBackingUpAll ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : allArticlesBackedUp ? (
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                ) : (
+                  <CloudUpload className="h-4 w-4 mr-2" />
+                )}
+                {isBackingUpAll ? '备份中' : allArticlesBackedUp ? '全部已备份' : '一键备份'}
               </Button>
             </SheetDescription>
           </SheetHeader>
@@ -282,8 +386,9 @@ export function ArticleList({ onSelect, currentContent, onNew }: ArticleListProp
                         <FileText className="h-4 w-4 text-muted-foreground" />
                         <div className="flex-1 min-w-0">
                           <div className="font-medium truncate">{article.title}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(article.updatedAt).toLocaleString()}
+                          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                            <span>{new Date(article.updatedAt).toLocaleString()}</span>
+                            <BackupStatusBadge article={article} />
                           </div>
                         </div>
                       </button>
@@ -339,4 +444,4 @@ export function ArticleList({ onSelect, currentContent, onNew }: ArticleListProp
       </AlertDialog>
     </>
   )
-} 
+}
