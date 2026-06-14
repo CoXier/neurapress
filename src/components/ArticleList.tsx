@@ -351,7 +351,7 @@ export function ArticleList({
               {articles.map(article => (
                 <div
                   key={article.id}
-                  className="flex items-center justify-between p-2 rounded-md hover:bg-muted group"
+                  className="flex min-w-0 items-center justify-between gap-2 p-2 rounded-md hover:bg-muted group"
                 >
                   {editingId === article.id ? (
                     <div className="flex items-center gap-2 flex-1">
@@ -381,9 +381,9 @@ export function ArticleList({
                     <>
                       <button
                         onClick={() => onSelect(article)}
-                        className="flex items-center gap-2 flex-1 text-left"
+                        className="flex min-w-0 flex-1 items-center gap-2 text-left"
                       >
-                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                         <div className="flex-1 min-w-0">
                           <div className="font-medium truncate">{article.title}</div>
                           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
@@ -392,7 +392,7 @@ export function ArticleList({
                           </div>
                         </div>
                       </button>
-                      <div className="flex items-center gap-1">
+                      <div className="flex shrink-0 items-center gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
