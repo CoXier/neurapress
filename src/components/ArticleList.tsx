@@ -351,10 +351,10 @@ export function ArticleList({
               {articles.map(article => (
                 <div
                   key={article.id}
-                  className="flex min-w-0 items-center justify-between gap-2 p-2 rounded-md hover:bg-muted group"
+                  className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 p-2 rounded-md hover:bg-muted group"
                 >
                   {editingId === article.id ? (
-                    <div className="flex items-center gap-2 flex-1">
+                    <div className="col-span-2 flex min-w-0 items-center gap-2">
                       <Input
                         value={editingTitle}
                         onChange={(e) => setEditingTitle(e.target.value)}
@@ -381,7 +381,7 @@ export function ArticleList({
                     <>
                       <button
                         onClick={() => onSelect(article)}
-                        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                        className="flex min-w-0 items-center gap-2 text-left"
                       >
                         <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                         <div className="flex-1 min-w-0">
@@ -396,8 +396,9 @@ export function ArticleList({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="h-8 w-8 shrink-0"
                           onClick={() => startRename(article)}
+                          title="重命名"
                         >
                           <Edit2 className="h-4 w-4" />
                           <span className="sr-only">重命名</span>
@@ -405,10 +406,11 @@ export function ArticleList({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 shrink-0 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                          className="h-8 w-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
                           onClick={() => deleteArticle(article)}
+                          title="删除"
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 className="h-4 w-4" />
                           <span className="sr-only">删除</span>
                         </Button>
                       </div>
