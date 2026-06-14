@@ -1,12 +1,13 @@
 'use client'
 
-import { Copy, Save, Smartphone, Trash2 } from 'lucide-react'
+import { Copy, Save, Settings, Smartphone, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { ArticleList } from '@/components/ArticleList'
 import { Logo } from '@/components/icons/Logo'
 import { ToastAction } from '@/components/ui/toast'
 import { useToast } from '@/components/ui/use-toast'
 import { cn } from '@/lib/utils'
+import { ImageUploadSettingsDialog } from './ImageUploadSettingsDialog'
 
 interface EditorToolbarProps {
   value: string
@@ -18,6 +19,8 @@ interface EditorToolbarProps {
   onArticleSelect: (article: { content: string, template: string }) => void
   onPreviewToggle: () => void
   onClear: () => void
+  imageUploadSettingsOpen: boolean
+  onImageUploadSettingsOpenChange: (open: boolean) => void
 }
 
 export function EditorToolbar({
@@ -29,7 +32,9 @@ export function EditorToolbar({
   onNewArticle,
   onArticleSelect,
   onPreviewToggle,
-  onClear
+  onClear,
+  imageUploadSettingsOpen,
+  onImageUploadSettingsOpenChange
 }: EditorToolbarProps) {
   const { toast } = useToast()
 
@@ -95,6 +100,13 @@ export function EditorToolbar({
                 {isDraft ? '未保存' : '已保存'}
               </span>
               <button
+                onClick={() => onImageUploadSettingsOpenChange(true)}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-muted text-muted-foreground hover:bg-muted/90 text-sm transition-colors"
+              >
+                <Settings className="h-4 w-4" />
+                <span className="hidden sm:inline">设置</span>
+              </button>
+              <button
                 onClick={onSave}
                 className={cn(
                   'inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors hidden sm:inline-flex',
@@ -124,6 +136,10 @@ export function EditorToolbar({
           </div>
         </div>
       </div>
+      <ImageUploadSettingsDialog
+        open={imageUploadSettingsOpen}
+        onOpenChange={onImageUploadSettingsOpenChange}
+      />
     </div>
   )
 }

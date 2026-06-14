@@ -125,6 +125,32 @@ docker run -p 3000:3000 [your-dockerhub-username]/neurapress:latest
    - 点击"复制"获取带格式的预览内容
    - 直接粘贴到微信公众号编辑器中使用
 
+5. **上传图片**
+   - 支持粘贴、拖拽或从工具栏选择图片
+   - 图片上传到 Cloudflare R2 后会自动插入 Markdown 图片链接
+   - 点击顶部"设置"可以配置自己的 Worker 上传接口和上传密钥
+   - 上传服务配置见 [workers/image-upload/README.md](workers/image-upload/README.md)
+
+### 图片上传配置
+
+1. 部署上传服务：
+
+```bash
+cd workers/image-upload
+pnpm install
+pnpm wrangler r2 bucket create neurapress-images
+pnpm wrangler secret put UPLOAD_TOKEN
+pnpm wrangler deploy
+```
+
+2. 在根目录创建 `.env.local`：
+
+```bash
+NEXT_PUBLIC_IMAGE_UPLOAD_ENDPOINT=https://your-worker.workers.dev/upload
+```
+
+3. 重启本地开发服务。打开编辑器顶部"设置"，填写 Worker 的 `/upload` 地址和 `UPLOAD_TOKEN`。配置只保存在当前浏览器的 `localStorage` 中。
+
 ## 技术栈
 
 - Next.js 14

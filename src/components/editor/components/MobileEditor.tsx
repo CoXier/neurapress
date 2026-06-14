@@ -8,6 +8,13 @@ import { EditorPreview } from './EditorPreview'
 import { type PreviewSize } from '../constants'
 import { type CodeThemeId } from '@/config/code-themes'
 
+function getImageFilesFromItems(items: DataTransferItemList) {
+  return Array.from(items)
+    .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
+    .map(item => item.getAsFile())
+    .filter((file): file is File => Boolean(file))
+}
+
 interface MobileEditorProps {
   textareaRef: RefObject<HTMLTextAreaElement>
   previewRef: RefObject<HTMLDivElement>
@@ -21,6 +28,7 @@ interface MobileEditorProps {
   onEditorChange: (value: string) => void
   onEditorScroll: (e: React.UIEvent<HTMLTextAreaElement>) => void
   onPreviewSizeChange: (size: PreviewSize) => void
+  onImageUpload: (files: File[]) => void | Promise<void>
   onCopy: () => Promise<boolean>
 }
 
@@ -37,6 +45,7 @@ export function MobileEditor({
   onEditorChange,
   onEditorScroll,
   onPreviewSizeChange,
+  onImageUpload,
   onCopy
 }: MobileEditorProps) {
   return (
@@ -69,6 +78,13 @@ export function MobileEditor({
                 if (textareaRef.current) {
                   onEditorScroll(e)
                 }
+              }}
+              onPaste={e => {
+                const imageFiles = getImageFilesFromItems(e.clipboardData.items)
+                if (imageFiles.length === 0) return
+
+                e.preventDefault()
+                onImageUpload(imageFiles)
               }}
               className="absolute inset-0 w-full h-full resize-none border-0 bg-background p-4 focus:outline-none"
               placeholder="开始写作..."

@@ -15,12 +15,18 @@ import { useEditorKeyboard } from './hooks/useEditorKeyboard'
 import { useScrollSync } from './hooks/useScrollSync'
 import { useWordStats } from './hooks/useWordStats'
 import { useCopy } from './hooks/useCopy'
+import { useImageUpload } from './hooks/useImageUpload'
 import { MobileEditor } from './components/MobileEditor'
 import { DesktopEditor } from './components/DesktopEditor'
 import { getExampleContent } from '@/lib/utils/loadExampleContent'
 
 const fixedStyleOptions: RendererOptions = {}
 const defaultCodeTheme: CodeThemeId = 'github'
+
+function getImageAltText(file: File) {
+  const filename = file.name.replace(/\.[^.]+$/, '').trim()
+  return filename || '图片'
+}
 
 export default function WechatEditor() {
   const { toast } = useToast()
@@ -34,6 +40,7 @@ export default function WechatEditor() {
   const [showPreview, setShowPreview] = useState(true)
   const [previewSize, setPreviewSize] = useState<PreviewSize>('medium')
   const [isDraft, setIsDraft] = useState(false)
+  const [imageUploadSettingsOpen, setImageUploadSettingsOpen] = useState(false)
   const codeTheme = defaultCodeTheme
 
   // 使用自定义 hooks
@@ -110,7 +117,14 @@ export default function WechatEditor() {
     })
   }, [handleEditorChange])
 
+  const openImageUploadSettings = useCallback(() => {
+    setImageUploadSettingsOpen(true)
+  }, [])
+
   const { copyToClipboard } = useCopy()
+  const { isUploadingImage, uploadImage } = useImageUpload({
+    onOpenSettings: openImageUploadSettings
+  })
 
   const handleCopy = useCallback(async (): Promise<boolean> => {
     const contentElement = previewRef.current?.querySelector('.preview-content') as HTMLElement | null
@@ -182,6 +196,58 @@ export default function WechatEditor() {
     setValue(exampleContent)
     setIsDraft(false)
   }, [isDraft, toast])
+
+  const insertTextAtCursor = useCallback((text: string) => {
+    const textarea = textareaRef.current
+
+    if (!textarea) {
+      setValue(currentValue => {
+        const nextValue = currentValue ? `${currentValue}\n${text}` : text
+        handleEditorChange(nextValue)
+        return nextValue
+      })
+      return
+    }
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const scrollTop = textarea.scrollTop
+    const currentValue = textarea.value
+    const newText = currentValue.substring(0, start) + text + currentValue.substring(end)
+    const newCursorPos = start + text.length
+
+    setValue(newText)
+    handleEditorChange(newText)
+
+    requestAnimationFrame(() => {
+      textarea.focus()
+      textarea.scrollTop = scrollTop
+      textarea.setSelectionRange(newCursorPos, newCursorPos)
+    })
+  }, [handleEditorChange])
+
+  const handleImageUpload = useCallback(async (files: File[]) => {
+    const imageFiles = files.filter(file => file.type.startsWith('image/'))
+    if (imageFiles.length === 0) return
+
+    try {
+      const markdownItems: string[] = []
+
+      for (const file of imageFiles) {
+        const result = await uploadImage(file)
+        markdownItems.push(`![${getImageAltText(file)}](${result.url})`)
+      }
+
+      insertTextAtCursor(`${markdownItems.join('\n')}\n`)
+      toast({
+        title: '图片已上传',
+        description: `${markdownItems.length} 张图片已插入正文`,
+        duration: 2000
+      })
+    } catch {
+      // useImageUpload already reports the failure.
+    }
+  }, [insertTextAtCursor, toast, uploadImage])
 
   // 处理工具栏插入文本
   const handleToolbarInsert = useCallback((text: string, options?: { wrap?: boolean; placeholder?: string; suffix?: string }) => {
@@ -280,6 +346,8 @@ export default function WechatEditor() {
         onArticleSelect={handleArticleSelect}
         onPreviewToggle={() => setShowPreview(!showPreview)}
         onClear={handleClear}
+        imageUploadSettingsOpen={imageUploadSettingsOpen}
+        onImageUploadSettingsOpenChange={setImageUploadSettingsOpen}
       />
 
       {/* 编辑器主体 */}
@@ -298,6 +366,7 @@ export default function WechatEditor() {
           onEditorChange={handleEditorChange}
           onEditorScroll={handleEditorScroll}
           onPreviewSizeChange={setPreviewSize}
+          onImageUpload={handleImageUpload}
           onCopy={handleCopy}
         />
 
@@ -318,7 +387,9 @@ export default function WechatEditor() {
           onEditorScroll={handleEditorScroll}
           onPreviewSizeChange={setPreviewSize}
           onToolbarInsert={handleToolbarInsert}
+          onImageUpload={handleImageUpload}
           onKeyDown={handleKeyDown}
+          isUploadingImage={isUploadingImage}
         />
       </div>
 

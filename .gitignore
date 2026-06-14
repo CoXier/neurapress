@@ -1,5 +1,6 @@
 # dependencies
 /node_modules
+node_modules/
 /.pnp
 .pnp.js
 
@@ -26,6 +27,8 @@ pnpm-debug.log*
 # local env files
 .env*.local
 .env
+.upload-token.local
+.dev.vars*
 
 # vercel
 .vercel
@@ -57,4 +60,4 @@ Thumbs.db
 # Cache directories
 .cache/
 .npm/
-.pnpm-store/ 
+.pnpm-store/

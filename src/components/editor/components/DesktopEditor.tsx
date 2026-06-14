@@ -8,6 +8,17 @@ import { MarkdownToolbar } from './MarkdownToolbar'
 import { type PreviewSize } from '../constants'
 import { type CodeThemeId } from '@/config/code-themes'
 
+function getImageFilesFromItems(items: DataTransferItemList) {
+  return Array.from(items)
+    .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
+    .map(item => item.getAsFile())
+    .filter((file): file is File => Boolean(file))
+}
+
+function getImageFilesFromFileList(files: FileList) {
+  return Array.from(files).filter(file => file.type.startsWith('image/'))
+}
+
 interface DesktopEditorProps {
   editorRef: RefObject<HTMLDivElement>
   textareaRef: RefObject<HTMLTextAreaElement>
@@ -24,7 +35,9 @@ interface DesktopEditorProps {
   onEditorScroll: (e: React.UIEvent<HTMLTextAreaElement>) => void
   onPreviewSizeChange: (size: PreviewSize) => void
   onToolbarInsert: (text: string, options?: { wrap?: boolean; placeholder?: string; suffix?: string }) => void
+  onImageUpload: (files: File[]) => void | Promise<void>
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
+  isUploadingImage: boolean
 }
 
 export function DesktopEditor({
@@ -43,11 +56,13 @@ export function DesktopEditor({
   onEditorScroll,
   onPreviewSizeChange,
   onToolbarInsert,
-  onKeyDown
+  onImageUpload,
+  onKeyDown,
+  isUploadingImage
 }: DesktopEditorProps) {
   return (
     <div className="hidden md:flex flex-1 h-full">
-      <div 
+      <div
         ref={editorRef}
         className={cn(
           "editor-container bg-background transition-all duration-300 ease-in-out flex flex-col h-full",
@@ -55,7 +70,11 @@ export function DesktopEditor({
           selectedTemplate && templates.find(t => t.id === selectedTemplate)?.styles
         )}
       >
-        <MarkdownToolbar onInsert={onToolbarInsert} />
+        <MarkdownToolbar
+          onInsert={onToolbarInsert}
+          onImageUpload={onImageUpload}
+          isUploadingImage={isUploadingImage}
+        />
         <div className="flex-1 overflow-hidden">
           <textarea
             ref={textareaRef}
@@ -72,6 +91,27 @@ export function DesktopEditor({
               });
             }}
             onKeyDown={onKeyDown}
+            onPaste={e => {
+              const imageFiles = getImageFilesFromItems(e.clipboardData.items)
+              if (imageFiles.length === 0) return
+
+              e.preventDefault()
+              onImageUpload(imageFiles)
+            }}
+            onDrop={e => {
+              const imageFiles = getImageFilesFromFileList(e.dataTransfer.files)
+              if (imageFiles.length === 0) return
+
+              e.preventDefault()
+              onImageUpload(imageFiles)
+            }}
+            onDragOver={e => {
+              const hasImage = Array.from(e.dataTransfer.items || [])
+                .some(item => item.kind === 'file' && item.type.startsWith('image/'))
+              if (hasImage) {
+                e.preventDefault()
+              }
+            }}
             onScroll={e => {
               if (textareaRef.current) {
                 onEditorScroll(e)
@@ -83,9 +123,9 @@ export function DesktopEditor({
           />
         </div>
       </div>
-      
+
       {showPreview && (
-        <EditorPreview 
+        <EditorPreview
           previewRef={previewRef}
           selectedTemplate={selectedTemplate}
           previewSize={previewSize}
@@ -97,4 +137,4 @@ export function DesktopEditor({
       )}
     </div>
   )
-} 
+}

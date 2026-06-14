@@ -1,16 +1,17 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { Separator } from '@/components/ui/separator'
 import {
   Bold,
   Italic,
+  Loader2,
   List,
   ListOrdered,
   Quote,
   Code,
   Link,
-  Image,
+  ImagePlus,
   Table,
   Heading1,
   Heading2,
@@ -22,12 +23,15 @@ import { MarkdownCheatSheet } from './MarkdownCheatSheet'
 
 interface MarkdownToolbarProps {
   onInsert: (text: string, options?: { wrap?: boolean; placeholder?: string; suffix?: string }) => void
+  onImageUpload?: (files: File[]) => void | Promise<void>
+  isUploadingImage?: boolean
 }
 
 type ToolButton = {
   icon: React.ReactNode
   title: string
   text: string
+  action?: 'upload-image'
   wrap?: boolean
   placeholder?: string
   suffix?: string
@@ -35,7 +39,9 @@ type ToolButton = {
 
 type Tool = ToolButton | { type: 'separator' }
 
-export function MarkdownToolbar({ onInsert }: MarkdownToolbarProps) {
+export function MarkdownToolbar({ onInsert, onImageUpload, isUploadingImage = false }: MarkdownToolbarProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const tools: Tool[] = [
     {
       icon: <Heading1 className="h-4 w-4" />,
@@ -114,9 +120,12 @@ export function MarkdownToolbar({ onInsert }: MarkdownToolbarProps) {
       placeholder: '链接文本'
     },
     {
-      icon: <Image className="h-4 w-4" />,
-      title: '图片',
+      icon: isUploadingImage
+        ? <Loader2 className="h-4 w-4 animate-spin" />
+        : <ImagePlus className="h-4 w-4" />,
+      title: '上传图片',
       text: '![',
+      action: 'upload-image',
       wrap: true,
       suffix: '](url)',
       placeholder: '图片描述'
@@ -138,6 +147,20 @@ export function MarkdownToolbar({ onInsert }: MarkdownToolbarProps) {
 
   return (
     <TooltipProvider>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/gif,image/webp"
+        multiple
+        className="hidden"
+        onChange={(event) => {
+          const files = Array.from(event.target.files || [])
+          event.target.value = ''
+          if (files.length > 0) {
+            onImageUpload?.(files)
+          }
+        }}
+      />
       <div className="flex items-center gap-0.5 px-2 py-1 border-b">
         {tools.map((tool, index) => {
           if ('type' in tool && tool.type === 'separator') {
@@ -152,8 +175,14 @@ export function MarkdownToolbar({ onInsert }: MarkdownToolbarProps) {
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 p-0"
+                  disabled={buttonTool.action === 'upload-image' && isUploadingImage}
                   onClick={(e) => {
                     e.preventDefault()
+                    if (buttonTool.action === 'upload-image' && onImageUpload) {
+                      fileInputRef.current?.click()
+                      return
+                    }
+
                     onInsert(buttonTool.text, {
                       wrap: buttonTool.wrap,
                       placeholder: buttonTool.placeholder,
@@ -182,4 +211,4 @@ export function MarkdownToolbar({ onInsert }: MarkdownToolbarProps) {
       </div>
     </TooltipProvider>
   )
-} 
+}

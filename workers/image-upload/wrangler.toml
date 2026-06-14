@@ -1,0 +1,17 @@
+name = "neurapress-image-upload"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+workers_dev = true
+preview_urls = false
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "neurapress-images"
+
+[vars]
+# Comma-separated list. Include localhost for local editor development.
+ALLOWED_ORIGINS = "http://localhost:3001,https://coxier.github.io"
+MAX_UPLOAD_BYTES = "5242880"
+# Optional. If empty, files are served through this Worker at /file/<key>.
+# For a custom image domain, set this to something like https://img.example.com
+PUBLIC_BASE_URL = ""

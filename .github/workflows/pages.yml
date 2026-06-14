@@ -17,6 +17,7 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  NEXT_PUBLIC_IMAGE_UPLOAD_ENDPOINT: https://neurapress-image-upload.coxier.workers.dev/upload
 
 jobs:
   build:
