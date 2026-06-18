@@ -30,8 +30,11 @@ import {
 } from '@/lib/article-backup'
 import {
   ARTICLES_UPDATED_EVENT,
-  getCloudArticleId,
+  getArticleCloudId,
+  getCurrentLocalArticleId,
   loadLocalArticles,
+  setCurrentLocalArticleId,
+  type LocalArticle,
   type LocalArticleBackupStatus,
   upsertLocalArticleContent,
   updateLocalArticleBackupStatus
@@ -151,9 +154,10 @@ export default function WechatEditor() {
   }, [copyToClipboard, toast, previewRef])
 
   // 处理文章选择
-  const handleArticleSelect = useCallback((article: { id?: string; content: string; template: string }) => {
-    const nextArticleId = article.id ? getCloudArticleId(article.id) : createBackupArticleId()
+  const handleArticleSelect = useCallback((article: LocalArticle) => {
+    const nextArticleId = getArticleCloudId(article)
     setLocalArticleId(article.id || '')
+    setCurrentLocalArticleId(article.id || '')
     setCurrentBackupArticleId(nextArticleId)
     setArticleId(nextArticleId)
     setValue(article.content)
@@ -176,12 +180,14 @@ export default function WechatEditor() {
     const article = upsertLocalArticleContent({
       id: localArticleId || undefined,
       content,
-      template: selectedTemplate
+      template: selectedTemplate,
+      cloudArticleId: articleId || undefined
     })
-    const cloudArticleId = getCloudArticleId(article.id)
+    const cloudArticleId = getArticleCloudId(article)
 
     if (!localArticleId) {
       setLocalArticleId(article.id)
+      setCurrentLocalArticleId(article.id)
     }
 
     setBackupStatus(article.backupStatus || 'not_backed_up')
@@ -202,6 +208,7 @@ export default function WechatEditor() {
     persistLocalArticle(value)
     const exampleContent = getExampleContent()
     setLocalArticleId('')
+    setCurrentLocalArticleId('')
     setArticleId(createBackupArticleId())
     setValue(exampleContent)
     setIsDraft(false)
@@ -219,6 +226,7 @@ export default function WechatEditor() {
 
     if (localArticleId) {
       updateLocalArticleBackupStatus(localArticleId, 'backed_up', {
+        cloudArticleId: articleId,
         backedUpAt: updatedAt,
         backupError: ''
       })
@@ -321,8 +329,9 @@ export default function WechatEditor() {
 
   useEffect(() => {
     const currentArticleId = getCurrentBackupArticleId()
+    const currentLocalArticleId = getCurrentLocalArticleId()
     setArticleId(currentArticleId)
-    setLocalArticleId(currentArticleId.startsWith('local_') ? currentArticleId.slice('local_'.length) : '')
+    setLocalArticleId(currentLocalArticleId || (currentArticleId.startsWith('local_') ? currentArticleId.slice('local_'.length) : ''))
     setAutoBackupEnabledState(getAutoBackupEnabled())
     setLastBackupAtState(getLastBackupAt())
   }, [])
@@ -371,6 +380,7 @@ export default function WechatEditor() {
         setLastBackupAtState(result.article.updatedAt)
         if (localArticleId) {
           updateLocalArticleBackupStatus(localArticleId, 'backed_up', {
+            cloudArticleId: articleId,
             backedUpAt: result.article.updatedAt,
             backupError: ''
           })

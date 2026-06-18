@@ -25,6 +25,7 @@ import {
   AlertCircle,
   Check,
   CheckCircle2,
+  CloudDownload,
   CloudOff,
   CloudUpload,
   Edit2,
@@ -37,13 +38,21 @@ import {
 import { useToast } from '@/components/ui/use-toast'
 import { Input } from '@/components/ui/input'
 import {
+  deleteArticleBackup,
   getArticleBackupConfig,
+  getLatestArticleBackup,
+  listArticleBackups,
   saveArticleBackup
 } from '@/lib/article-backup'
 import {
   ARTICLES_UPDATED_EVENT,
+  createLocalArticleId,
+  getArticleCloudId,
   getCloudArticleId,
+  isDeletedCloudArticle,
   loadLocalArticles,
+  mergeCloudArticleBackups,
+  rememberDeletedCloudArticleId,
   type LocalArticle,
   type LocalArticleBackupStatus,
   updateLocalArticleBackupStatus,
@@ -54,7 +63,7 @@ interface ArticleListProps {
   onSelect: (article: LocalArticle) => void
   onNew?: () => void
   onOpenSettings?: () => void
-  onArticleBackupComplete?: (articleId: string, updatedAt: string) => void
+  onArticleBackupComplete?: (articleId: string, updatedAt: string, cloudArticleId: string) => void
 }
 
 function getBackupStatus(article: LocalArticle): LocalArticleBackupStatus {
@@ -112,6 +121,8 @@ export function ArticleList({
   const [editingTitle, setEditingTitle] = useState('')
   const [isOpen, setIsOpen] = useState(false)
   const [isBackingUpAll, setIsBackingUpAll] = useState(false)
+  const [isPullingCloud, setIsPullingCloud] = useState(false)
+  const [isDeletingArticle, setIsDeletingArticle] = useState(false)
   const allArticlesBackedUp = articles.length > 0 && articles.every(article => getBackupStatus(article) === 'backed_up')
 
   // 加载文章列表
@@ -126,7 +137,7 @@ export function ArticleList({
   const markBackupStatus = (
     articleId: string,
     status: LocalArticleBackupStatus,
-    extra: Partial<Pick<LocalArticle, 'backedUpAt' | 'backupError'>> = {}
+    extra: Partial<Pick<LocalArticle, 'backedUpAt' | 'backupError' | 'cloudArticleId'>> = {}
   ) => {
     const nextArticles = updateLocalArticleBackupStatus(articleId, status, extra)
     setArticles(nextArticles)
@@ -154,10 +165,11 @@ export function ArticleList({
     for (const article of articles) {
       if (!article.content.trim()) continue
 
+      const cloudArticleId = getArticleCloudId(article)
       markBackupStatus(article.id, 'backing_up', { backupError: '' })
       try {
         const result = await saveArticleBackup({
-          articleId: getCloudArticleId(article.id),
+          articleId: cloudArticleId,
           title: article.title,
           content: article.content,
           mode: 'manual'
@@ -165,10 +177,11 @@ export function ArticleList({
 
         successCount += 1
         markBackupStatus(article.id, 'backed_up', {
+          cloudArticleId,
           backedUpAt: result.article.updatedAt,
           backupError: ''
         })
-        onArticleBackupComplete?.(article.id, result.article.updatedAt)
+        onArticleBackupComplete?.(article.id, result.article.updatedAt, cloudArticleId)
       } catch (error) {
         failedCount += 1
         markBackupStatus(article.id, 'failed', {
@@ -188,24 +201,109 @@ export function ArticleList({
     })
   }
 
+  const pullCloudArticles = async () => {
+    if (isPullingCloud) return
+
+    const { baseUrl, token } = getArticleBackupConfig()
+    if (!baseUrl || !token) {
+      onOpenSettings?.()
+      toast({
+        variant: "destructive",
+        title: "需要配置云端服务",
+        description: "请先填写 Worker 上传接口和上传密钥",
+        duration: 2500
+      })
+      return
+    }
+
+    setIsPullingCloud(true)
+
+    try {
+      const result = await listArticleBackups()
+      const availableCloudArticles = result.articles.filter(article => !isDeletedCloudArticle(article.id))
+      const localArticles = loadLocalArticles()
+      const localArticlesByCloudId = new Map(
+        localArticles.map(article => [getArticleCloudId(article), article])
+      )
+      const cloudArticlesToPull = availableCloudArticles.filter(article => {
+        const localArticle = localArticlesByCloudId.get(article.id)
+        if (!localArticle) return true
+
+        const localBackedUpAt = localArticle.backedUpAt || ''
+        const isCloudNewer = article.updatedAt.localeCompare(localBackedUpAt) > 0
+        return isCloudNewer && getBackupStatus(localArticle) === 'backed_up'
+      })
+
+      if (cloudArticlesToPull.length === 0) {
+        toast({
+          title: "云端已同步",
+          description: availableCloudArticles.length === 0 ? "云端还没有可拉取的文章备份" : "本地已经包含云端文章",
+          duration: 2500
+        })
+        return
+      }
+
+      const cloudArticleBackups = await Promise.all(
+        cloudArticlesToPull.map(article => getLatestArticleBackup(article.id).then(response => response.article))
+      )
+      const mergeResult = mergeCloudArticleBackups(cloudArticleBackups)
+      setArticles(mergeResult.articles)
+
+      toast({
+        title: "云端文章已拉取",
+        description: `新增 ${mergeResult.addedCount} 篇，更新 ${mergeResult.updatedCount} 篇`,
+        duration: 3000
+      })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "拉取失败",
+        description: error instanceof Error ? error.message : "请检查云端服务设置",
+        duration: 3000
+      })
+    } finally {
+      setIsPullingCloud(false)
+    }
+  }
+
   // 删除文章
   const deleteArticle = (article: LocalArticle) => {
     setArticleToDelete(article)
   }
 
   // 确认删除文章
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!articleToDelete) return
 
-    const updatedArticles = articles.filter(article => article.id !== articleToDelete.id)
+    const article = articleToDelete
+    const cloudArticleId = getArticleCloudId(article)
+    const { baseUrl, token } = getArticleBackupConfig()
+    let cloudDeleteFailed = false
+
+    setIsDeletingArticle(true)
+    rememberDeletedCloudArticleId(cloudArticleId)
+
+    if (baseUrl && token) {
+      try {
+        await deleteArticleBackup(cloudArticleId)
+      } catch {
+        cloudDeleteFailed = true
+      }
+    }
+
+    const updatedArticles = articles.filter(item => item.id !== article.id)
     setArticles(updatedArticles)
     saveLocalArticles(updatedArticles)
+    setIsDeletingArticle(false)
     setArticleToDelete(null)
 
     toast({
-      title: "删除成功",
-      description: `文章"${articleToDelete.title}"已删除`,
-      duration: 2000
+      variant: cloudDeleteFailed ? "destructive" : "default",
+      title: cloudDeleteFailed ? "已删除本地，云端删除失败" : "删除成功",
+      description: cloudDeleteFailed
+        ? "这台电脑不会再次拉回此文章，请稍后检查云端服务"
+        : `文章"${article.title}"已删除`,
+      duration: cloudDeleteFailed ? 3000 : 2000
     })
   }
 
@@ -219,8 +317,9 @@ export function ArticleList({
     }
 
     // 默认的新建文章处理
+    const articleId = createLocalArticleId()
     const newArticle: LocalArticle = {
-      id: Date.now().toString(),
+      id: articleId,
       title: '新文章',
       content: `# 新文章
 
@@ -240,6 +339,7 @@ export function ArticleList({
       template: 'default',
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      cloudArticleId: getCloudArticleId(articleId),
       backupStatus: 'not_backed_up'
     }
 
@@ -325,7 +425,7 @@ export function ArticleList({
         <SheetContent side="left" className="w-[300px] sm:w-[400px]">
           <SheetHeader>
             <SheetTitle>文章列表</SheetTitle>
-            <SheetDescription className="flex gap-2">
+            <SheetDescription className="grid grid-cols-2 gap-2">
               <Button onClick={createNewArticle} className="flex-1">
                 <Plus className="h-4 w-4 mr-2" />
                 新建文章
@@ -343,6 +443,20 @@ export function ArticleList({
                   <CloudUpload className="h-4 w-4 mr-2" />
                 )}
                 {isBackingUpAll ? '备份中' : allArticlesBackedUp ? '全部已备份' : '一键备份'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={pullCloudArticles}
+                className="col-span-2"
+                disabled={isPullingCloud}
+              >
+                {isPullingCloud ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <CloudDownload className="h-4 w-4 mr-2" />
+                )}
+                拉取云端
               </Button>
             </SheetDescription>
           </SheetHeader>
@@ -428,7 +542,9 @@ export function ArticleList({
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={!!articleToDelete} onOpenChange={() => setArticleToDelete(null)}>
+      <AlertDialog open={!!articleToDelete} onOpenChange={() => {
+        if (!isDeletingArticle) setArticleToDelete(null)
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除</AlertDialogTitle>
@@ -437,9 +553,17 @@ export function ArticleList({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              删除
+            <AlertDialogCancel disabled={isDeletingArticle}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={event => {
+                event.preventDefault()
+                void confirmDelete()
+              }}
+              disabled={isDeletingArticle}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingArticle && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isDeletingArticle ? '删除中' : '删除'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -12,13 +12,21 @@ export type ArticleBackup = {
   content: string
   source: string
   mode: ArticleBackupMode
+  deviceId?: string
   wordCount: number
   createdAt: string
   updatedAt: string
 }
 
+export type ArticleBackupSummary = Omit<ArticleBackup, 'content'>
+
 export type SaveArticleBackupResult = {
   article: Pick<ArticleBackup, 'id' | 'title' | 'wordCount' | 'updatedAt'>
+}
+
+export type DeleteArticleBackupResult = {
+  deleted: boolean
+  article: Pick<ArticleBackup, 'id'>
 }
 
 const DEVICE_ID_STORAGE_KEY = 'neurapress_backup_device_id'
@@ -127,11 +135,16 @@ export function getArticleBackupConfig() {
 
 function getArticleUrl(articleId: string, path = '') {
   const { baseUrl } = getArticleBackupConfig()
-  const deviceId = encodeURIComponent(getBackupDeviceId())
   const encodedArticleId = encodeURIComponent(articleId)
 
   if (!baseUrl) return ''
-  return `${baseUrl}/articles/${deviceId}/${encodedArticleId}${path}`
+  return `${baseUrl}/articles/${encodedArticleId}${path}`
+}
+
+function getArticlesUrl() {
+  const { baseUrl } = getArticleBackupConfig()
+  if (!baseUrl) return ''
+  return `${baseUrl}/articles`
 }
 
 async function readJsonSafely(response: Response) {
@@ -198,6 +211,7 @@ export async function saveArticleBackup({
         content,
         mode,
         source: 'wechat',
+        deviceId: getBackupDeviceId(),
         clientUpdatedAt: new Date().toISOString()
       })
     })
@@ -212,4 +226,16 @@ export async function saveArticleBackup({
 export async function getLatestArticleBackup(articleId: string) {
   const url = getArticleUrl(articleId, '/latest')
   return requestArticleApi<{ article: ArticleBackup }>(url)
+}
+
+export async function listArticleBackups() {
+  const url = getArticlesUrl()
+  return requestArticleApi<{ articles: ArticleBackupSummary[] }>(url)
+}
+
+export async function deleteArticleBackup(articleId: string) {
+  const url = getArticleUrl(articleId)
+  return requestArticleApi<DeleteArticleBackupResult>(url, {
+    method: 'DELETE'
+  })
 }

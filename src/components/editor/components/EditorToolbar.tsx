@@ -9,7 +9,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { cn } from '@/lib/utils'
 import { ArticleBackupDialog } from './ArticleBackupDialog'
 import { ImageUploadSettingsDialog } from './ImageUploadSettingsDialog'
-import { type LocalArticleBackupStatus } from '@/lib/local-articles'
+import { type LocalArticle, type LocalArticleBackupStatus } from '@/lib/local-articles'
 
 interface EditorToolbarProps {
   value: string
@@ -17,7 +17,7 @@ interface EditorToolbarProps {
   showPreview: boolean
   onCopyPreview: () => Promise<boolean>
   onNewArticle: () => void
-  onArticleSelect: (article: { id?: string; content: string, template: string }) => void
+  onArticleSelect: (article: LocalArticle) => void
   onPreviewToggle: () => void
   onClear: () => void
   imageUploadSettingsOpen: boolean
@@ -131,8 +131,8 @@ export function EditorToolbar({
                   onSelect={onArticleSelect}
                   onNew={onNewArticle}
                   onOpenSettings={() => onImageUploadSettingsOpenChange(true)}
-                  onArticleBackupComplete={(localArticleId, updatedAt) => {
-                    if (articleId === `local_${localArticleId}`) {
+                  onArticleBackupComplete={(_localArticleId, updatedAt, cloudArticleId) => {
+                    if (articleId === cloudArticleId) {
                       onLastBackupAtChange(updatedAt)
                     }
                   }}

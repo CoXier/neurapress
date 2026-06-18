@@ -18,6 +18,7 @@ type ArticleBackupPayload = {
   content?: string
   source?: string
   mode?: string
+  deviceId?: string
   clientUpdatedAt?: string
 }
 
@@ -27,6 +28,18 @@ type ArticleBackup = {
   content: string
   source: string
   mode: string
+  deviceId: string
+  wordCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+type ArticleIndexEntry = {
+  id: string
+  title: string
+  source: string
+  mode: string
+  deviceId: string
   wordCount: number
   createdAt: string
   updatedAt: string
@@ -75,7 +88,7 @@ function corsHeaders(request: Request, env: Env) {
 
   return {
     ...(allowOrigin ? { 'access-control-allow-origin': allowOrigin } : {}),
-    'access-control-allow-methods': 'GET, HEAD, POST, OPTIONS',
+    'access-control-allow-methods': 'GET, HEAD, POST, DELETE, OPTIONS',
     'access-control-allow-headers': 'authorization, content-type, x-upload-token',
     'access-control-max-age': '86400',
     vary: 'Origin'
@@ -248,8 +261,16 @@ function safePathSegment(value: string) {
   return value.trim().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80)
 }
 
-function articleLatestKey(deviceId: string, articleId: string) {
+function articleLatestKey(articleId: string) {
+  return `articles/global/${articleId}/latest.json`
+}
+
+function legacyArticleLatestKey(deviceId: string, articleId: string) {
   return `articles/${deviceId}/${articleId}/latest.json`
+}
+
+function articleIndexKey() {
+  return 'articles/index.json'
 }
 
 function getWordCount(content: string) {
@@ -264,6 +285,91 @@ async function readArticleBackup(object: R2ObjectBody | null): Promise<ArticleBa
   } catch {
     return null
   }
+}
+
+async function findLegacyArticleBackup(env: Env, articleId: string) {
+  let cursor: string | undefined
+  let latestBackup: ArticleBackup | null = null
+
+  do {
+    const result = await env.IMAGES.list({
+      prefix: 'articles/',
+      cursor,
+      limit: 1000
+    })
+
+    for (const object of result.objects) {
+      if (
+        !object.key.endsWith(`/${articleId}/latest.json`)
+        || object.key.startsWith('articles/global/')
+      ) {
+        continue
+      }
+
+      const backup = await readArticleBackup(await env.IMAGES.get(object.key))
+      if (!backup) continue
+
+      if (!latestBackup || backup.updatedAt.localeCompare(latestBackup.updatedAt) > 0) {
+        latestBackup = backup
+      }
+    }
+
+    cursor = result.truncated ? result.cursor : undefined
+  } while (cursor)
+
+  return latestBackup
+}
+
+async function readArticleIndex(env: Env): Promise<ArticleIndexEntry[]> {
+  const object = await env.IMAGES.get(articleIndexKey())
+  if (!object) return []
+
+  try {
+    const payload = await object.json<{ articles?: ArticleIndexEntry[] }>()
+    return Array.isArray(payload.articles) ? payload.articles : []
+  } catch {
+    return []
+  }
+}
+
+async function writeArticleIndex(env: Env, articles: ArticleIndexEntry[]) {
+  await env.IMAGES.put(articleIndexKey(), JSON.stringify({ articles }), {
+    httpMetadata: {
+      contentType: 'application/json; charset=utf-8'
+    }
+  })
+}
+
+async function upsertArticleIndex(env: Env, backup: ArticleBackup) {
+  const articles = await readArticleIndex(env)
+  const entry: ArticleIndexEntry = {
+    id: backup.id,
+    title: backup.title,
+    source: backup.source,
+    mode: backup.mode,
+    deviceId: backup.deviceId,
+    wordCount: backup.wordCount,
+    createdAt: backup.createdAt,
+    updatedAt: backup.updatedAt
+  }
+  const nextArticles = [
+    entry,
+    ...articles.filter(article => article.id !== backup.id)
+  ].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+
+  await writeArticleIndex(env, nextArticles)
+  return nextArticles
+}
+
+async function deleteArticleIndex(env: Env, articleId: string) {
+  const articles = await readArticleIndex(env)
+  const nextArticles = articles.filter(article => article.id !== articleId)
+
+  if (nextArticles.length !== articles.length) {
+    await writeArticleIndex(env, nextArticles)
+  }
+
+  return nextArticles
 }
 
 async function readArticlePayload(request: Request): Promise<ArticleBackupPayload | null> {
@@ -282,7 +388,7 @@ async function readArticlePayload(request: Request): Promise<ArticleBackupPayloa
   }
 }
 
-async function handleCreateArticleBackup(request: Request, env: Env, deviceId: string, articleId: string) {
+async function handleCreateArticleBackup(request: Request, env: Env, articleId: string, deviceIdFromPath = '') {
   const accessError = requireApiAccess(request, env)
   if (accessError) return accessError
 
@@ -301,7 +407,8 @@ async function handleCreateArticleBackup(request: Request, env: Env, deviceId: s
     return json(request, env, { error: 'INVALID_ARTICLE_PAYLOAD' }, 400)
   }
 
-  const latestKey = articleLatestKey(deviceId, articleId)
+  const deviceId = safePathSegment(payload.deviceId || deviceIdFromPath || 'unknown')
+  const latestKey = articleLatestKey(articleId)
   const latest = await readArticleBackup(await env.IMAGES.get(latestKey))
   const now = new Date()
   const updatedAt = now.toISOString()
@@ -314,6 +421,7 @@ async function handleCreateArticleBackup(request: Request, env: Env, deviceId: s
     content,
     source: payload.source || 'wechat',
     mode: payload.mode || 'manual',
+    deviceId,
     wordCount: getWordCount(content),
     createdAt: latest?.createdAt || payload.clientUpdatedAt || updatedAt,
     updatedAt
@@ -324,16 +432,31 @@ async function handleCreateArticleBackup(request: Request, env: Env, deviceId: s
     title,
     articleId,
     mode: backup.mode,
+    deviceId,
     wordCount: String(backup.wordCount),
     updatedAt
   }
 
-  await env.IMAGES.put(latestKey, body, {
-    httpMetadata: {
-      contentType: 'application/json; charset=utf-8'
-    },
-    customMetadata: metadata
-  })
+  const writes = [
+    env.IMAGES.put(latestKey, body, {
+      httpMetadata: {
+        contentType: 'application/json; charset=utf-8'
+      },
+      customMetadata: metadata
+    }),
+    upsertArticleIndex(env, backup)
+  ]
+
+  if (deviceIdFromPath) {
+    writes.push(env.IMAGES.put(legacyArticleLatestKey(deviceIdFromPath, articleId), body, {
+      httpMetadata: {
+        contentType: 'application/json; charset=utf-8'
+      },
+      customMetadata: metadata
+    }))
+  }
+
+  await Promise.all(writes)
 
   return json(request, env, {
     article: {
@@ -345,27 +468,156 @@ async function handleCreateArticleBackup(request: Request, env: Env, deviceId: s
   })
 }
 
-async function handleGetLatestArticle(request: Request, env: Env, deviceId: string, articleId: string) {
+async function handleGetLatestArticle(request: Request, env: Env, articleId: string, deviceIdFromPath = '') {
   const accessError = requireApiAccess(request, env)
   if (accessError) return accessError
 
-  const backup = await readArticleBackup(await env.IMAGES.get(articleLatestKey(deviceId, articleId)))
+  const globalBackup = await readArticleBackup(await env.IMAGES.get(articleLatestKey(articleId)))
+  const legacyBackup = deviceIdFromPath
+    ? await readArticleBackup(await env.IMAGES.get(legacyArticleLatestKey(deviceIdFromPath, articleId)))
+    : await findLegacyArticleBackup(env, articleId)
+  const backup = [globalBackup, legacyBackup]
+    .filter((article): article is ArticleBackup => Boolean(article))
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
+
   if (!backup) return json(request, env, { error: 'ARTICLE_NOT_FOUND' }, 404)
 
   return json(request, env, { article: backup })
+}
+
+async function handleDeleteArticle(request: Request, env: Env, articleId: string, deviceIdFromPath = '') {
+  const accessError = requireApiAccess(request, env)
+  if (accessError) return accessError
+
+  const keysToDelete = new Set<string>([articleLatestKey(articleId)])
+
+  if (deviceIdFromPath) {
+    keysToDelete.add(legacyArticleLatestKey(deviceIdFromPath, articleId))
+  } else {
+    let cursor: string | undefined
+
+    do {
+      const result = await env.IMAGES.list({
+        prefix: 'articles/',
+        cursor,
+        limit: 1000
+      })
+
+      for (const object of result.objects) {
+        if (
+          object.key.endsWith(`/${articleId}/latest.json`)
+          && !object.key.startsWith('articles/global/')
+        ) {
+          keysToDelete.add(object.key)
+        }
+      }
+
+      cursor = result.truncated ? result.cursor : undefined
+    } while (cursor)
+  }
+
+  await Promise.all([
+    ...[...keysToDelete].map(key => env.IMAGES.delete(key)),
+    deleteArticleIndex(env, articleId)
+  ])
+
+  return json(request, env, {
+    deleted: true,
+    article: {
+      id: articleId
+    }
+  })
+}
+
+async function listLegacyArticleBackups(env: Env) {
+  const articles: ArticleIndexEntry[] = []
+  let cursor: string | undefined
+
+  do {
+    const result = await env.IMAGES.list({
+      prefix: 'articles/',
+      cursor,
+      limit: 1000
+    })
+
+    for (const object of result.objects) {
+      if (!object.key.endsWith('/latest.json') || object.key.startsWith('articles/global/')) {
+        continue
+      }
+
+      const parts = object.key.split('/')
+      const deviceId = parts[1] || ''
+      const articleId = parts[2] || ''
+      if (!deviceId || !articleId) continue
+
+      const backup = await readArticleBackup(await env.IMAGES.get(object.key))
+      if (!backup) continue
+
+      articles.push({
+        id: backup.id || articleId,
+        title: backup.title,
+        source: backup.source,
+        mode: backup.mode,
+        deviceId: backup.deviceId || deviceId,
+        wordCount: backup.wordCount,
+        createdAt: backup.createdAt,
+        updatedAt: backup.updatedAt
+      })
+    }
+
+    cursor = result.truncated ? result.cursor : undefined
+  } while (cursor)
+
+  return articles
+}
+
+async function handleListArticles(request: Request, env: Env) {
+  const accessError = requireApiAccess(request, env)
+  if (accessError) return accessError
+
+  const indexedArticles = await readArticleIndex(env)
+  const legacyArticles = await listLegacyArticleBackups(env)
+  const articleMap = new Map<string, ArticleIndexEntry>()
+
+  for (const article of [...legacyArticles, ...indexedArticles]) {
+    const existing = articleMap.get(article.id)
+    if (!existing || article.updatedAt.localeCompare(existing.updatedAt) > 0) {
+      articleMap.set(article.id, article)
+    }
+  }
+
+  const articles = [...articleMap.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  return json(request, env, { articles })
 }
 
 function getArticleRoute(pathname: string) {
   const parts = pathname.split('/').filter(Boolean)
   if (parts[0] !== 'articles') return null
 
+  if (parts.length === 1) {
+    return {
+      kind: 'list' as const
+    }
+  }
+
+  if (parts.length <= 3 && (parts.length === 2 || parts[2] === 'latest')) {
+    const articleId = safePathSegment(parts[1] || '')
+    if (!articleId) return null
+
+    return {
+      kind: 'article' as const,
+      articleId,
+      action: parts[2] || ''
+    }
+  }
+
   const deviceId = safePathSegment(parts[1] || '')
   const articleId = safePathSegment(parts[2] || '')
   const action = parts[3] || ''
-
   if (!deviceId || !articleId) return null
 
   return {
+    kind: 'legacyArticle' as const,
     deviceId,
     articleId,
     action
@@ -393,14 +645,40 @@ export default {
 
     const articleRoute = getArticleRoute(url.pathname)
     if (articleRoute) {
-      const { deviceId, articleId, action } = articleRoute
-
-      if (!action && request.method === 'POST') {
-        return handleCreateArticleBackup(request, env, deviceId, articleId)
+      if (articleRoute.kind === 'list' && request.method === 'GET') {
+        return handleListArticles(request, env)
       }
 
-      if (action === 'latest' && request.method === 'GET') {
-        return handleGetLatestArticle(request, env, deviceId, articleId)
+      if (articleRoute.kind === 'article') {
+        const { articleId, action } = articleRoute
+
+        if (!action && request.method === 'POST') {
+          return handleCreateArticleBackup(request, env, articleId)
+        }
+
+        if (action === 'latest' && request.method === 'GET') {
+          return handleGetLatestArticle(request, env, articleId)
+        }
+
+        if (!action && request.method === 'DELETE') {
+          return handleDeleteArticle(request, env, articleId)
+        }
+      }
+
+      if (articleRoute.kind === 'legacyArticle') {
+        const { deviceId, articleId, action } = articleRoute
+
+        if (!action && request.method === 'POST') {
+          return handleCreateArticleBackup(request, env, articleId, deviceId)
+        }
+
+        if (action === 'latest' && request.method === 'GET') {
+          return handleGetLatestArticle(request, env, articleId, deviceId)
+        }
+
+        if (!action && request.method === 'DELETE') {
+          return handleDeleteArticle(request, env, articleId, deviceId)
+        }
       }
     }
 

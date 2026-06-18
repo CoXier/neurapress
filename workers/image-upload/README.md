@@ -67,5 +67,10 @@ All write APIs require an allowed `Origin` and the `UPLOAD_TOKEN`.
 
 - `POST /upload` uploads an image file from multipart field `file`.
 - `GET /file/<key>` serves an uploaded image.
-- `POST /articles/<deviceId>/<articleId>` saves the latest article backup.
-- `GET /articles/<deviceId>/<articleId>/latest` returns the latest article backup.
+- `GET /articles` lists cloud article backups.
+- `POST /articles/<articleId>` saves the latest article backup.
+- `DELETE /articles/<articleId>` deletes the article backup from the cloud.
+- `GET /articles/<articleId>/latest` returns the latest article backup.
+- `POST /articles/<deviceId>/<articleId>` remains supported for older clients.
+- `DELETE /articles/<deviceId>/<articleId>` remains supported for older clients.
+- `GET /articles/<deviceId>/<articleId>/latest` remains supported for older clients.

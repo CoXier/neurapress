@@ -15,6 +15,24 @@ export function normalizeImageUploadEndpoint(endpoint: string) {
   return normalized.endsWith('/') ? normalized.slice(0, -1) : normalized
 }
 
+export function normalizeImageUploadToken(token: string) {
+  let normalized = token.trim()
+
+  if (normalized.startsWith('UPLOAD_TOKEN=')) {
+    normalized = normalized.slice('UPLOAD_TOKEN='.length).trim()
+  }
+
+  if (
+    normalized.length >= 2
+    && ((normalized.startsWith('"') && normalized.endsWith('"'))
+      || (normalized.startsWith("'") && normalized.endsWith("'")))
+  ) {
+    normalized = normalized.slice(1, -1).trim()
+  }
+
+  return normalized
+}
+
 export function getWorkerBaseUrl(endpoint: string) {
   const normalized = normalizeImageUploadEndpoint(endpoint)
   if (!normalized) return ''
@@ -43,13 +61,13 @@ export function getImageUploadSettings(): ImageUploadSettings {
 
   return {
     endpoint: normalizeImageUploadEndpoint(savedEndpoint || getDefaultImageUploadEndpoint()),
-    token: localStorage.getItem(TOKEN_STORAGE_KEY) || ''
+    token: normalizeImageUploadToken(localStorage.getItem(TOKEN_STORAGE_KEY) || '')
   }
 }
 
 export function saveImageUploadSettings(settings: ImageUploadSettings) {
   const endpoint = normalizeImageUploadEndpoint(settings.endpoint)
-  const token = settings.token.trim()
+  const token = normalizeImageUploadToken(settings.token)
 
   if (endpoint) {
     localStorage.setItem(ENDPOINT_STORAGE_KEY, endpoint)
