@@ -4,10 +4,38 @@ import { useCallback } from 'react'
 import { useToast } from '@/components/ui/use-toast'
 import { initializeMermaid } from '@/lib/markdown/mermaid-utils'
 
+interface CopyOptions {
+  excludeLeadingTitle?: boolean
+}
+
+function removeLeadingTitle(container: HTMLElement) {
+  const heading = container.querySelector('h1')
+  if (!heading) return
+
+  let current: Node | null = heading
+  while (current && current !== container) {
+    let sibling = current.previousSibling
+    while (sibling) {
+      if (sibling.nodeType === Node.ELEMENT_NODE || sibling.textContent?.trim()) {
+        return
+      }
+      sibling = sibling.previousSibling
+    }
+    current = current.parentNode
+  }
+
+  if (current === container) {
+    heading.remove()
+  }
+}
+
 export const useCopy = () => {
   const { toast } = useToast()
 
-  const copyToClipboard = useCallback(async (contentElement: HTMLElement | null) => {
+  const copyToClipboard = useCallback(async (
+    contentElement: HTMLElement | null,
+    options: CopyOptions = {}
+  ) => {
     if (!contentElement) return false
 
     try {
@@ -15,6 +43,10 @@ export const useCopy = () => {
       const tempDiv = document.createElement('div')
       tempDiv.innerHTML = contentElement.innerHTML
       document.body.appendChild(tempDiv)
+
+      if (options.excludeLeadingTitle) {
+        removeLeadingTitle(tempDiv)
+      }
 
       // 处理 Mermaid 图表
       const mermaidElements = tempDiv.querySelectorAll('.mermaid')
@@ -74,4 +106,4 @@ export const useCopy = () => {
     handleCopy,
     copyToClipboard
   }
-} 
+}

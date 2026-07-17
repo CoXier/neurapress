@@ -135,11 +135,11 @@ export default function WechatEditor() {
     const contentElement = previewRef.current?.querySelector('.preview-content') as HTMLElement | null
     if (!contentElement) return false
 
-    const success = await copyToClipboard(contentElement)
+    const success = await copyToClipboard(contentElement, { excludeLeadingTitle: true })
     if (success) {
       toast({
         title: "复制成功",
-        description: "内容已复制，可直接粘贴到公众号编辑器",
+        description: "正文已复制，文章标题已自动排除",
         duration: 2000
       })
     } else {
