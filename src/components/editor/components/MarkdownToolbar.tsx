@@ -3,7 +3,17 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { Separator } from '@/components/ui/separator'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
+import {
+  Baseline,
   Bold,
+  Highlighter,
   Italic,
   Loader2,
   List,
@@ -37,7 +47,112 @@ type ToolButton = {
   suffix?: string
 }
 
-type Tool = ToolButton | { type: 'separator' }
+type Tool = ToolButton | { type: 'separator' } | { type: 'colors' }
+
+const TEXT_COLORS = [
+  { name: '黑色', value: '#111827' },
+  { name: '灰色', value: '#667085' },
+  { name: '红色', value: '#d92d20' },
+  { name: '橙色', value: '#d97706' },
+  { name: '绿色', value: '#008f5a' },
+  { name: '蓝色', value: '#2563eb' },
+  { name: '紫色', value: '#7c3aed' },
+  { name: '粉色', value: '#db2777' }
+]
+
+const BACKGROUND_COLORS = [
+  { name: '灰色背景', value: '#f2f4f7' },
+  { name: '红色背景', value: '#fee4e2' },
+  { name: '橙色背景', value: '#fef0c7' },
+  { name: '黄色背景', value: '#fef7c3' },
+  { name: '绿色背景', value: '#ddf7ea' },
+  { name: '蓝色背景', value: '#e4edff' },
+  { name: '紫色背景', value: '#f0e7ff' },
+  { name: '粉色背景', value: '#fce7f3' }
+]
+
+interface ColorMenuProps {
+  label: string
+  colors: typeof TEXT_COLORS
+  icon: React.ReactNode
+  cssProperty: 'color' | 'background-color'
+  placeholder: string
+  onInsert: MarkdownToolbarProps['onInsert']
+}
+
+function ColorMenu({ label, colors, icon, cssProperty, placeholder, onInsert }: ColorMenuProps) {
+  return (
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              aria-label={label}
+            >
+              {icon}
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          <p>{label}</p>
+        </TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent align="start" className="w-40 p-2">
+        <DropdownMenuLabel className="px-1 pb-2 pt-0 text-xs font-medium text-muted-foreground">
+          {label}
+        </DropdownMenuLabel>
+        <DropdownMenuGroup className="grid grid-cols-4 gap-1">
+          {colors.map(color => (
+            <DropdownMenuItem
+              key={color.value}
+              className="h-8 w-8 cursor-pointer justify-center rounded-sm p-0 focus:bg-muted"
+              aria-label={color.name}
+              title={color.name}
+              onSelect={() => {
+                onInsert(`<span style="${cssProperty}: ${color.value} !important;">`, {
+                  wrap: true,
+                  suffix: '</span>',
+                  placeholder
+                })
+              }}
+            >
+              <span
+                className="h-5 w-5 rounded-sm border border-black/10"
+                style={{ backgroundColor: color.value }}
+              />
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function TextColorTools({ onInsert }: Pick<MarkdownToolbarProps, 'onInsert'>) {
+  return (
+    <>
+      <ColorMenu
+        label="文字颜色"
+        colors={TEXT_COLORS}
+        icon={<Baseline className="h-4 w-4" />}
+        cssProperty="color"
+        placeholder="文字"
+        onInsert={onInsert}
+      />
+      <ColorMenu
+        label="背景颜色"
+        colors={BACKGROUND_COLORS}
+        icon={<Highlighter className="h-4 w-4" />}
+        cssProperty="background-color"
+        placeholder="高亮文字"
+        onInsert={onInsert}
+      />
+    </>
+  )
+}
 
 export function MarkdownToolbar({ onInsert, onImageUpload, isUploadingImage = false }: MarkdownToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -76,6 +191,7 @@ export function MarkdownToolbar({ onInsert, onImageUpload, isUploadingImage = fa
       wrap: true,
       placeholder: '斜体文本'
     },
+    { type: 'colors' },
     { type: 'separator' },
     {
       icon: <List className="h-4 w-4" />,
@@ -165,6 +281,10 @@ export function MarkdownToolbar({ onInsert, onImageUpload, isUploadingImage = fa
         {tools.map((tool, index) => {
           if ('type' in tool && tool.type === 'separator') {
             return <Separator key={index} orientation="vertical" className="mx-0.5 h-4" />
+          }
+
+          if ('type' in tool && tool.type === 'colors') {
+            return <TextColorTools key={index} onInsert={onInsert} />
           }
 
           const buttonTool = tool as ToolButton
