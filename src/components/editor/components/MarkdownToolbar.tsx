@@ -27,12 +27,16 @@ import {
   Heading2,
   Heading3,
   Minus,
-  CheckSquare
+  CheckSquare,
+  Redo2,
+  Undo2
 } from 'lucide-react'
 import { MarkdownCheatSheet } from './MarkdownCheatSheet'
 
 interface MarkdownToolbarProps {
   onInsert: (text: string, options?: { wrap?: boolean; placeholder?: string; suffix?: string }) => void
+  onUndo: () => void
+  onRedo: () => void
   onImageUpload?: (files: File[]) => void | Promise<void>
   isUploadingImage?: boolean
 }
@@ -41,7 +45,7 @@ type ToolButton = {
   icon: React.ReactNode
   title: string
   text: string
-  action?: 'upload-image'
+  action?: 'upload-image' | 'undo' | 'redo'
   wrap?: boolean
   placeholder?: string
   suffix?: string
@@ -154,10 +158,29 @@ function TextColorTools({ onInsert }: Pick<MarkdownToolbarProps, 'onInsert'>) {
   )
 }
 
-export function MarkdownToolbar({ onInsert, onImageUpload, isUploadingImage = false }: MarkdownToolbarProps) {
+export function MarkdownToolbar({
+  onInsert,
+  onUndo,
+  onRedo,
+  onImageUpload,
+  isUploadingImage = false
+}: MarkdownToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const tools: Tool[] = [
+    {
+      icon: <Undo2 className="h-4 w-4" />,
+      title: '撤销',
+      text: '',
+      action: 'undo'
+    },
+    {
+      icon: <Redo2 className="h-4 w-4" />,
+      title: '重做',
+      text: '',
+      action: 'redo'
+    },
+    { type: 'separator' },
     {
       icon: <Heading1 className="h-4 w-4" />,
       title: '标题 1',
@@ -298,6 +321,14 @@ export function MarkdownToolbar({ onInsert, onImageUpload, isUploadingImage = fa
                   disabled={buttonTool.action === 'upload-image' && isUploadingImage}
                   onClick={(e) => {
                     e.preventDefault()
+                    if (buttonTool.action === 'undo') {
+                      onUndo()
+                      return
+                    }
+                    if (buttonTool.action === 'redo') {
+                      onRedo()
+                      return
+                    }
                     if (buttonTool.action === 'upload-image' && onImageUpload) {
                       fileInputRef.current?.click()
                       return

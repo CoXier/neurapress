@@ -233,6 +233,38 @@ export default function WechatEditor() {
     }
   }, [localArticleId])
 
+  const replaceTextareaRange = useCallback((
+    start: number,
+    end: number,
+    replacement: string,
+    cursorPosition = start + replacement.length
+  ) => {
+    const textarea = textareaRef.current
+    if (!textarea) return false
+
+    const scrollTop = textarea.scrollTop
+    textarea.focus()
+    textarea.setSelectionRange(start, end)
+
+    // Scripted textarea edits only join the browser's undo stack through insertText.
+    const addedToNativeHistory = document.execCommand('insertText', false, replacement)
+    if (!addedToNativeHistory) {
+      textarea.setRangeText(replacement, start, end, 'end')
+    }
+
+    const nextValue = textarea.value
+    setValue(nextValue)
+    handleEditorChange(nextValue)
+
+    requestAnimationFrame(() => {
+      textarea.focus()
+      textarea.scrollTop = scrollTop
+      textarea.setSelectionRange(cursorPosition, cursorPosition)
+    })
+
+    return true
+  }, [handleEditorChange])
+
   const insertTextAtCursor = useCallback((text: string) => {
     const textarea = textareaRef.current
 
@@ -245,22 +277,8 @@ export default function WechatEditor() {
       return
     }
 
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const scrollTop = textarea.scrollTop
-    const currentValue = textarea.value
-    const newText = currentValue.substring(0, start) + text + currentValue.substring(end)
-    const newCursorPos = start + text.length
-
-    setValue(newText)
-    handleEditorChange(newText)
-
-    requestAnimationFrame(() => {
-      textarea.focus()
-      textarea.scrollTop = scrollTop
-      textarea.setSelectionRange(newCursorPos, newCursorPos)
-    })
-  }, [handleEditorChange])
+    replaceTextareaRange(textarea.selectionStart, textarea.selectionEnd, text)
+  }, [handleEditorChange, replaceTextareaRange])
 
   const handleImageUpload = useCallback(async (files: File[]) => {
     const imageFiles = files.filter(file => file.type.startsWith('image/'))
@@ -293,33 +311,33 @@ export default function WechatEditor() {
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
     const selectedText = value.substring(start, end)
-    const scrollTop = textarea.scrollTop
-    
-    let newText = ''
+    let replacement = ''
     let newCursorPos = 0
 
     if (options?.wrap && selectedText) {
-      newText = value.substring(0, start) + 
-                text + selectedText + (options.suffix || text) + 
-                value.substring(end)
+      replacement = text + selectedText + (options.suffix || text)
       newCursorPos = start + text.length + selectedText.length + (options.suffix?.length || text.length)
     } else {
       const insertText = selectedText || options?.placeholder || ''
-      newText = value.substring(0, start) + 
-                text + insertText + (options?.suffix || '') + 
-                value.substring(end)
+      replacement = text + insertText + (options?.suffix || '')
       newCursorPos = start + text.length + insertText.length + (options?.suffix?.length || 0)
     }
 
-    setValue(newText)
-    handleEditorChange(newText)
+    replaceTextareaRange(start, end, replacement, newCursorPos)
+  }, [value, replaceTextareaRange])
 
-    requestAnimationFrame(() => {
-      textarea.focus()
-      textarea.scrollTop = scrollTop
-      textarea.setSelectionRange(newCursorPos, newCursorPos)
-    })
-  }, [value, handleEditorChange])
+  const handleHistoryCommand = useCallback((command: 'undo' | 'redo') => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    textarea.focus()
+    const changed = document.execCommand(command)
+    if (!changed) return
+
+    const nextValue = textarea.value
+    setValue(nextValue)
+    handleEditorChange(nextValue)
+  }, [handleEditorChange])
 
   // 检测是否为移动设备
   const isMobile = useCallback(() => {
@@ -494,6 +512,8 @@ export default function WechatEditor() {
           onEditorScroll={handleEditorScroll}
           onPreviewSizeChange={setPreviewSize}
           onToolbarInsert={handleToolbarInsert}
+          onUndo={() => handleHistoryCommand('undo')}
+          onRedo={() => handleHistoryCommand('redo')}
           onImageUpload={handleImageUpload}
           onKeyDown={handleKeyDown}
           isUploadingImage={isUploadingImage}

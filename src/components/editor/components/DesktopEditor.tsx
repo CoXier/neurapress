@@ -35,6 +35,8 @@ interface DesktopEditorProps {
   onEditorScroll: (e: React.UIEvent<HTMLTextAreaElement>) => void
   onPreviewSizeChange: (size: PreviewSize) => void
   onToolbarInsert: (text: string, options?: { wrap?: boolean; placeholder?: string; suffix?: string }) => void
+  onUndo: () => void
+  onRedo: () => void
   onImageUpload: (files: File[]) => void | Promise<void>
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
   isUploadingImage: boolean
@@ -56,6 +58,8 @@ export function DesktopEditor({
   onEditorScroll,
   onPreviewSizeChange,
   onToolbarInsert,
+  onUndo,
+  onRedo,
   onImageUpload,
   onKeyDown,
   isUploadingImage
@@ -72,6 +76,8 @@ export function DesktopEditor({
       >
         <MarkdownToolbar
           onInsert={onToolbarInsert}
+          onUndo={onUndo}
+          onRedo={onRedo}
           onImageUpload={onImageUpload}
           isUploadingImage={isUploadingImage}
         />
