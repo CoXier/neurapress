@@ -1,6 +1,14 @@
 import type { StyleOptions, RendererOptions } from './types'
 import { codeThemes, type CodeThemeId } from '@/config/code-themes'
 
+function escapeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
 // 将样式对象转换为 CSS 字符串
 export function cssPropertiesToString(style: StyleOptions = {}): string {
   if (!style) return ''
@@ -16,7 +24,7 @@ export function cssPropertiesToString(style: StyleOptions = {}): string {
     'order'
   ])
 
-  return Object.entries(style)
+  const css = Object.entries(style)
     .filter(([_, value]) => value !== undefined && value !== null)
     .map(([key, value]) => {
       // 处理媒体查询
@@ -36,6 +44,8 @@ export function cssPropertiesToString(style: StyleOptions = {}): string {
     })
     .filter(Boolean)  // 移除空字符串
     .join(';')
+
+  return escapeHtmlAttribute(css)
 }
 
 // 将基础样式选项转换为 CSS 字符串
@@ -78,7 +88,7 @@ export function baseStylesToString(base: RendererOptions['base'] = {}): string {
     styles.push(`--theme-color: ${base.themeColor}`)
   }
 
-  return styles.join(';')
+  return escapeHtmlAttribute(styles.join(';'))
 }
 
 // 获取代码主题的样式
